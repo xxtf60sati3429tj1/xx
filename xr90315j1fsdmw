@@ -605,6 +605,16 @@ local state = {
     silentOnly = false,
     triggerOnly = false,
     cameraOnly = false,
+    jumpModConnection = nil,
+    jumpDefaultPower = 50,
+    walljumpConnection = nil,
+    walljumpResetConnection = nil,
+    walljumpFallStart = 0,
+    antiStompConnection = nil,
+    antiStompKOConnection = nil,
+    avatarConnections = {},
+    delayConnections = {},
+    delayChildConnections = {},
 }
 
 local player = LocalPlayer
@@ -621,6 +631,7 @@ local function IsGameSupported()
         [80973874602881] = true,
         [138995385694035] = true,
         [123974602339071] = true,
+        [70374175945923] = true,
     }
     if supportedIds[placeId] then return true end
     
@@ -652,11 +663,688 @@ local function IsStealthEnabled()
 end
 
 if not IsStealthEnabled() then
-    print("table: 0x250395503")
-    warn("[Debug] Injected Scare.")
+    print("table: 0x2503wuh586a02")
+end
+
+local function GetAnimationID(animName)
+    local anims = {
+        Astronaut = {Idle1 = "rbxassetid://891621366", Idle2 = "rbxassetid://891633237", Walk = "rbxassetid://891636393", Run = "rbxassetid://891636393", Fall = "rbxassetid://891617961", Jump = "rbxassetid://891627522", Climb = "rbxassetid://891609353", Swim = "rbxassetid://891639666", SwimIdle = "rbxassetid://891663592"},
+        Bold = {Idle1 = "rbxassetid://16738333868", Idle2 = "rbxassetid://16738334710", Walk = "rbxassetid://16738340646", Run = "rbxassetid://16738337225", Fall = "rbxassetid://16738333171", Jump = "rbxassetid://16738336650", Climb = "rbxassetid://16738332169", Swim = "rbxassetid://16738339158", SwimIdle = "rbxassetid://16738339817"},
+        Bubbly = {Idle1 = "rbxassetid://910004836", Idle2 = "rbxassetid://910009958", Walk = "rbxassetid://910034870", Run = "rbxassetid://910025107", Fall = "rbxassetid://910001910", Jump = "rbxassetid://910016857", Climb = "rbxassetid://909997997", Swim = "rbxassetid://910028158", SwimIdle = "rbxassetid://910030921"},
+        Cartoony = {Idle1 = "rbxassetid://742637544", Idle2 = "rbxassetid://742638445", Walk = "rbxassetid://742640026", Run = "rbxassetid://742638842", Fall = "rbxassetid://742637151", Jump = "rbxassetid://742637942", Climb = "rbxassetid://742636889", Swim = "rbxassetid://742639220", SwimIdle = "rbxassetid://742639812"},
+        Elder = {Idle1 = "rbxassetid://845397899", Idle2 = "rbxassetid://8454005", Walk = "rbxassetid://845403856", Run = "rbxassetid://845386501", Fall = "rbxassetid://616005863", Jump = "rbxassetid://845398858", Climb = "rbxassetid://656114359", Swim = "rbxassetid://845401742", SwimIdle = "rbxassetid://845403127"},
+        Knight = {Idle1 = "rbxassetid://657595757", Idle2 = "rbxassetid://657568135", Walk = "rbxassetid://657552124", Run = "rbxassetid://657564596", Fall = "rbxassetid://657600338", Jump = "rbxassetid://658409194", Climb = "rbxassetid://658360781", Swim = "rbxassetid://657560551", SwimIdle = "rbxassetid://657557095"},
+        Levitation = {Idle1 = "rbxassetid://616006778", Idle2 = "rbxassetid://616008087", Walk = "rbxassetid://616013216", Run = "rbxassetid://616010382", Fall = "rbxassetid://616005863", Jump = "rbxassetid://616008936", Climb = "rbxassetid://616003713", Swim = "rbxassetid://616011509", SwimIdle = "rbxassetid://616012453"},
+        Mage = {Idle1 = "rbxassetid://707742142", Idle2 = "rbxassetid://707855907", Walk = "rbxassetid://707897309", Run = "rbxassetid://707861613", Fall = "rbxassetid://707829716", Jump = "rbxassetid://707853694", Climb = "rbxassetid://707826056", Swim = "rbxassetid://707876443", SwimIdle = "rbxassetid://707894699"},
+        Ninja = {Idle1 = "rbxassetid://656117400", Idle2 = "rbxassetid://656118341", Walk = "rbxassetid://656121766", Run = "rbxassetid://656118852", Fall = "rbxassetid://656115606", Jump = "rbxassetid://656117878", Climb = "rbxassetid://656114359", Swim = "rbxassetid://656119721", SwimIdle = "rbxassetid://656121397"},
+        OldSchool = {Idle1 = "rbxassetid://5319828216", Idle2 = "rbxassetid://5319831086", Walk = "rbxassetid://5319847204", Run = "rbxassetid://5319844329", Fall = "rbxassetid://5319839762", Jump = "rbxassetid://5319841935", Climb = "rbxassetid://5319816685", Swim = "rbxassetid://5319850266", SwimIdle = "rbxassetid://5319852613"},
+        Pirate = {Idle1 = "rbxassetid://750781874", Idle2 = "rbxassetid://750782770", Walk = "rbxassetid://750785693", Run = "rbxassetid://750783738", Fall = "rbxassetid://750780242", Jump = "rbxassetid://750782230", Climb = "rbxassetid://750779899", Swim = "rbxassetid://750784579", SwimIdle = "rbxassetid://750785176"},
+        Rthro = {Idle1 = "rbxassetid://2510196951", Idle2 = "rbxassetid://2510197257", Walk = "rbxassetid://2510202577", Run = "rbxassetid://2510198475", Fall = "rbxassetid://656115606", Jump = "rbxassetid://656117878", Climb = "rbxassetid://2510192778", Swim = "rbxassetid://2510199791", SwimIdle = "rbxassetid://2510201162"},
+        Stylish = {Idle1 = "rbxassetid://616136790", Idle2 = "rbxassetid://616138447", Walk = "rbxassetid://616146177", Run = "rbxassetid://616140816", Fall = "rbxassetid://616134815", Jump = "rbxassetid://616139451", Climb = "rbxassetid://616133594", Swim = "rbxassetid://616143378", SwimIdle = "rbxassetid://616144772"},
+        Superhero = {Idle1 = "rbxassetid://616111295", Idle2 = "rbxassetid://616113536", Walk = "rbxassetid://616122287", Run = "rbxassetid://616117076", Fall = "rbxassetid://616108001", Jump = "rbxassetid://616115533", Climb = "rbxassetid://616104706", Swim = "rbxassetid://616119360", SwimIdle = "rbxassetid://616120861"},
+        Toy = {Idle1 = "rbxassetid://782841498", Idle2 = "rbxassetid://782845736", Walk = "rbxassetid://782843345", Run = "rbxassetid://782842708", Fall = "rbxassetid://782846423", Jump = "rbxassetid://782847020", Climb = "rbxassetid://782843869", Swim = "rbxassetid://782844582", SwimIdle = "rbxassetid://782845186"},
+        Vampire = {Idle1 = "rbxassetid://1083445855", Idle2 = "rbxassetid://1083450166", Walk = "rbxassetid://1083473930", Run = "rbxassetid://1083462077", Fall = "rbxassetid://1083443587", Jump = "rbxassetid://1083455352", Climb = "rbxassetid://1083439238", Swim = "rbxassetid://1083464683", SwimIdle = "rbxassetid://1083467779"},
+        Werewolf = {Idle1 = "rbxassetid://1083195517", Idle2 = "rbxassetid://1083214717", Walk = "rbxassetid://1083178339", Run = "rbxassetid://1083216690", Fall = "rbxassetid://1083189019", Jump = "rbxassetid://1083218792", Climb = "rbxassetid://1083182000", Swim = "rbxassetid://1083222527", SwimIdle = "rbxassetid://1083222527"},
+        Zombie = {Idle1 = "rbxassetid://616158929", Idle2 = "rbxassetid://616160636", Walk = "rbxassetid://616168032", Run = "rbxassetid://616163682", Fall = "rbxassetid://616157476", Jump = "rbxassetid://616161997", Climb = "rbxassetid://18537363391", Swim = "rbxassetid://616165109", SwimIdle = "rbxassetid://616166655"},
+        Adidas = {Idle1 = "rbxassetid://18537376492", Idle2 = "rbxassetid://18537371272", Walk = "rbxassetid://18537392113", Run = "rbxassetid://18537384940", Fall = "rbxassetid://18537367238", Jump = "rbxassetid://18537380791", Climb = "rbxassetid://18537363391", Swim = "rbxassetid://18537389531", SwimIdle = "rbxassetid://18537387180"},
+        FakeR6 = {Idle1 = "rbxassetid://12521158637", Idle2 = "rbxassetid://12521162526", Walk = "rbxassetid://126997486407971", Run = "rbxassetid://126997486407971", Fall = "rbxassetid://12520972571", Jump = "rbxassetid://12520880485", Climb = "rbxassetid://12520982150", Swim = "rbxassetid://12520993168", SwimIdle = "rbxassetid://2510201162"},
+    }
+    
+    local pkg = anims[animName]
+    if pkg then
+        return pkg
+    end
+    return nil
+end
+
+local function setAnimations(char, animPkg)
+    local animate = char:FindFirstChild("Animate")
+    if not animate then
+        animate = char:WaitForChild("Animate", 10)
+    end
+    if not animate then return end
+    animate.Enabled = false
+    
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then
+        hum = char:WaitForChild("Humanoid", 10)
+    end
+    if not hum then 
+        animate.Enabled = true
+        return 
+    end
+    local animator = hum:FindFirstChildOfClass("Animator")
+    if not animator then
+        animator = hum:WaitForChild("Animator", 10)
+    end
+    if not animator then 
+        animate.Enabled = true
+        return 
+    end
+    
+    for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+        pcall(function() track:Stop() end)
+    end
+    
+    local idle = animate:FindFirstChild("idle")
+    local walk = animate:FindFirstChild("walk")
+    local run = animate:FindFirstChild("run")
+    local swim = animate:FindFirstChild("swim")
+    local swimidle = animate:FindFirstChild("swimidle")
+    local jump = animate:FindFirstChild("jump")
+    local fall = animate:FindFirstChild("fall")
+    local climb = animate:FindFirstChild("climb")
+    
+    if idle then
+        local a1 = idle:FindFirstChild("Animation1")
+        local a2 = idle:FindFirstChild("Animation2")
+        if a1 and animPkg.Idle1 then a1.AnimationId = animPkg.Idle1 end
+        if a2 and animPkg.Idle2 then a2.AnimationId = animPkg.Idle2 end
+    end
+    if walk then local a = walk:FindFirstChild("WalkAnim"); if a and animPkg.Walk then a.AnimationId = animPkg.Walk end end
+    if run then local a = run:FindFirstChild("RunAnim"); if a and animPkg.Run then a.AnimationId = animPkg.Run end end
+    if swim then local a = swim:FindFirstChild("Swim"); if a and animPkg.Swim then a.AnimationId = animPkg.Swim end end
+    if swimidle then local a = swimidle:FindFirstChild("SwimIdle"); if a and animPkg.SwimIdle then a.AnimationId = animPkg.SwimIdle end end
+    if jump then local a = jump:FindFirstChild("JumpAnim"); if a and animPkg.Jump then a.AnimationId = animPkg.Jump end end
+    if fall then local a = fall:FindFirstChild("FallAnim"); if a and animPkg.Fall then a.AnimationId = animPkg.Fall end end
+    if climb then local a = climb:FindFirstChild("ClimbAnim"); if a and animPkg.Climb then a.AnimationId = animPkg.Climb end end
+    
+    animate.Enabled = true
+end
+
+local function applyAnimations(char)
+    local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
+    if not AvatarCfg then return end
+    local AnimSpoofer = AvatarCfg['Animation Spoofer']
+    if not AnimSpoofer then return end
+    
+    local AnimEnabled = AnimSpoofer['Enabled']
+    if not AnimEnabled then return end
+    
+    local animPkg = {
+        Idle1 = nil, Idle2 = nil, Walk = nil, Run = nil,
+        Fall = nil, Jump = nil, Climb = nil, Swim = nil, SwimIdle = nil
+    }
+    
+    local function getAnimationForState(stateName)
+        local stateValue = AnimSpoofer[stateName]
+        if stateValue and stateValue ~= "" then
+            local pkg = GetAnimationID(stateValue)
+            if pkg then
+                return pkg
+            end
+        end
+        return nil
+    end
+    
+    local idlePkg = getAnimationForState("Idle")
+    if idlePkg then
+        animPkg.Idle1 = idlePkg.Idle1
+        animPkg.Idle2 = idlePkg.Idle2
+    else
+        local fallbackPkg = GetAnimationID("Zombie")
+        if fallbackPkg then
+            animPkg.Idle1 = fallbackPkg.Idle1
+            animPkg.Idle2 = fallbackPkg.Idle2
+        end
+    end
+    
+    local stateMap = {
+        Walk = "Walk",
+        Run = "Run",
+        Fall = "Fall",
+        Jump = "Jump",
+        Climb = "Climb",
+        Swim = "Swim",
+        SwimIdle = "SwimIdle"
+    }
+    
+    for animKey, stateKey in pairs(stateMap) do
+        local pkg = getAnimationForState(stateKey)
+        if pkg and pkg[animKey] then
+            animPkg[animKey] = pkg[animKey]
+        else
+            local fallbackPkg = GetAnimationID("Zombie")
+            if fallbackPkg and fallbackPkg[animKey] then
+                animPkg[animKey] = fallbackPkg[animKey]
+            end
+        end
+    end
+    
+    setAnimations(char, animPkg)
+end
+
+local function applyEmoteSpoofer(char)
+    local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
+    if not AvatarCfg then return end
+    local EmoteSpoofer = AvatarCfg['Emote Spoofer']
+    if not EmoteSpoofer then return end
+    
+    local EmoteEnabled = EmoteSpoofer['Enabled']
+    if not EmoteEnabled then return end
+    
+    local function setEmoteSlot(slotNumber, emoteId)
+        local emoteService = game:GetService("EmotesService")
+        if not emoteService then return end
+        
+        pcall(function()
+            emoteService:SetEmote(slotNumber, emoteId)
+        end)
+    end
+    
+    local slots = {
+        {key = "Slot 1", num = 1},
+        {key = "Slot 2", num = 2},
+        {key = "Slot 3", num = 3},
+    }
+    
+    for _, slot in pairs(slots) do
+        local emoteId = EmoteSpoofer[slot.key]
+        if emoteId and emoteId ~= "" and emoteId ~= "PLACE A SELECTED EMOTE ID HERE" then
+            setEmoteSlot(slot.num, emoteId)
+        end
+    end
+end
+
+local function MakeHeadless(Character)
+    if not Character then return end
+    
+    local Head = Character:FindFirstChild("Head")
+    if not Head then return end
+    
+    local Face = Head:FindFirstChild("face")
+    if Face then
+        pcall(function() Face:Destroy() end)
+    end
+    
+    Head.Transparency = 1
+    
+    local hatFolder = Character:FindFirstChild("HatFolder")
+    if hatFolder then
+        for _, child in pairs(hatFolder:GetChildren()) do
+            if child:IsA("BasePart") then
+                local handle = child:FindFirstChild("Handle")
+                if handle then
+                    handle.Transparency = 1
+                end
+            end
+        end
+    end
+    
+    local accessories = Character:FindFirstChild("Accessories")
+    if accessories then
+        for _, child in pairs(accessories:GetChildren()) do
+            if child:IsA("Accessory") then
+                local handle = child:FindFirstChild("Handle")
+                if handle then
+                    handle.Transparency = 1
+                end
+            end
+        end
+    end
+end
+
+local function ApplyHeadless(Character)
+    local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
+    if not AvatarCfg then return end
+    local Config = AvatarCfg['Configuration']
+    if not Config then return end
+    local HeadlessSettings = Config['Headless']
+    if not HeadlessSettings then return end
+    
+    Character:WaitForChild("Head", 5)
+    MakeHeadless(Character)
+    
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    if Humanoid then
+        local DiedConnection = Humanoid.Died:Connect(function()
+            local Head = Character:FindFirstChild("Head")
+            if Head then
+                Head.Transparency = 0
+            end
+        end)
+        table.insert(state.avatarConnections, DiedConnection)
+    end
+end
+
+local function ApplyKorblox(Character)
+    local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
+    if not AvatarCfg then return end
+    local Config = AvatarCfg['Configuration']
+    if not Config then return end
+    local KorbloxSettings = Config['Korblox']
+    if not KorbloxSettings then return end
+    if not Character then return end
+
+    local RightUpperLeg = Character:FindFirstChild("RightUpperLeg")
+    local RightLowerLeg = Character:FindFirstChild("RightLowerLeg")
+    local RightFoot = Character:FindFirstChild("RightFoot")
+
+    if RightUpperLeg then
+        pcall(function()
+            RightUpperLeg.MeshId = "http://www.roblox.com/asset/?id=902942096"
+            RightUpperLeg.TextureID = "http://www.roblox.com/asset/?id=902843398"
+        end)
+    end
+
+    if RightLowerLeg then
+        pcall(function()
+            RightLowerLeg.MeshId = "http://www.roblox.com/asset/?id=902942093"
+            RightLowerLeg.Transparency = 1
+        end)
+    end
+
+    if RightFoot then
+        pcall(function()
+            RightFoot.MeshId = "http://www.roblox.com/asset/?id=902942089"
+            RightFoot.Transparency = 1
+        end)
+    end
+end
+
+local function ApplyAvatarSize(Character)
+    local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
+    if not AvatarCfg then return end
+    local Config = AvatarCfg['Configuration']
+    if not Config then return end
+    
+    local Width = Config['Width'] or 0.5
+    local Height = Config['Height'] or 1.0
+    
+    if Width == 0.5 and Height == 1.0 then return end
+    
+    local function scalePart(part)
+        if not part then return end
+        local scale = part:FindFirstChild("Scale")
+        if not scale then
+            scale = Instance.new("Vector3Value")
+            scale.Name = "Scale"
+            scale.Parent = part
+        end
+        scale.Value = Vector3.new(Width, Height, Width)
+    end
+    
+    local parts = {
+        "Head", "UpperTorso", "LowerTorso", "HumanoidRootPart",
+        "LeftUpperArm", "RightUpperArm", "LeftLowerArm", "RightLowerArm",
+        "LeftUpperLeg", "RightUpperLeg", "LeftLowerLeg", "RightLowerLeg",
+        "LeftFoot", "RightFoot", "LeftHand", "RightHand"
+    }
+    
+    for _, name in pairs(parts) do
+        local part = Character:FindFirstChild(name)
+        if part then
+            scalePart(part)
+        end
+    end
+end
+
+local function CleanupAvatarHandlers()
+    if AvatarConnection then
+        pcall(function() AvatarConnection:Disconnect() end)
+        AvatarConnection = nil
+    end
+    
+    for _, conn in pairs(state.avatarConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    state.avatarConnections = {}
+    
+    for _, conn in pairs(state.delayChildConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    state.delayChildConnections = {}
+end
+
+local function SetupAvatarModifications(Character)
+    if not Character then return end
+    
+    Character:WaitForChild("Humanoid", 5)
+    task.wait(0.1)
+    
+    ApplyHeadless(Character)
+    ApplyKorblox(Character)
+    ApplyAvatarSize(Character)
+    applyAnimations(Character)
+    applyEmoteSpoofer(Character)
+    SetupDelayModifications(Character)
+end
+
+local AvatarConnection = nil
+
+local function SetupAvatarHandlers()
+    if AvatarConnection then
+        pcall(function() AvatarConnection:Disconnect() end)
+        AvatarConnection = nil
+    end
+    
+    for _, conn in pairs(state.avatarConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    state.avatarConnections = {}
+    
+    AvatarConnection = LocalPlayer.CharacterAdded:Connect(SetupAvatarModifications)
+    
+    if LocalPlayer.Character then
+        SetupAvatarModifications(LocalPlayer.Character)
+    end
+end
+
+local function CleanupAvatarHandlers()
+    if AvatarConnection then
+        pcall(function() AvatarConnection:Disconnect() end)
+        AvatarConnection = nil
+    end
+    
+    for _, conn in pairs(state.avatarConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    state.avatarConnections = {}
+    
+    for _, conn in pairs(state.delayConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    state.delayConnections = {}
+    
+    for _, conn in pairs(state.delayChildConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    state.delayChildConnections = {}
+end
+
+SetupAvatarHandlers()
+
+local function SetupNoJumpCooldown()
+    local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
+    if not JumpSettings then return end
+    if not JumpSettings['No Jump Cooldown'] then return end
+    
+    local function RemoveJumpCooldown(Character)
+        if not Character then return end
+        local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+        if not Humanoid then return end
+        
+        if not state.jumpDefaultPower or state.jumpDefaultPower == 0 then
+            state.jumpDefaultPower = Humanoid.JumpPower
+        end
+        
+        if state.jumpModConnection then
+            pcall(function() state.jumpModConnection:Disconnect() end)
+            state.jumpModConnection = nil
+        end
+        
+        state.jumpModConnection = Humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
+            if Humanoid.JumpPower == 0 then
+                Humanoid.JumpPower = state.jumpDefaultPower
+            end
+        end)
+    end
+    
+    if LocalPlayer.Character then
+        RemoveJumpCooldown(LocalPlayer.Character)
+    end
+    
+    LocalPlayer.CharacterAdded:Connect(RemoveJumpCooldown)
+end
+
+SetupNoJumpCooldown()
+
+local function SetupWalljump()
+    local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
+    if not JumpSettings then return end
+    local WalljumpCfg = JumpSettings['Walljump']
+    if not WalljumpCfg or not WalljumpCfg['Enabled'] then return end
+    
+    local walljumpCooldown = 0.4
+    local walljumpPower = WalljumpCfg['Jump'] or 50
+    local walljumpKnifePower = WalljumpCfg['Knife'] or 65
+    
+    local function CheckForNearbyWall(Character, RootPart)
+        if not Character or not RootPart then return false end
+        
+        local WallRayParams = RaycastParams.new()
+        WallRayParams.FilterType = Enum.RaycastFilterType.Exclude
+        WallRayParams.FilterDescendantsInstances = {Character}
+        
+        local StartPos = RootPart.Position
+        local RootCFrame = RootPart.CFrame
+        local RayDirections = {
+            RootCFrame.LookVector,
+            -RootCFrame.LookVector,
+            RootCFrame.RightVector,
+            -RootCFrame.RightVector
+        }
+        for _, Direction in next, RayDirections do
+            local Result = Workspace:Raycast(StartPos, Direction * 3, WallRayParams)
+            if Result then
+                return true
+            end
+        end
+        return false
+    end
+    
+    local function GetWalljumpPower(Character)
+        local CurrentTool = Character:FindFirstChildOfClass("Tool")
+        local IsHoldingKnife = CurrentTool and (CurrentTool.Name == "[Knife]" or string.lower(CurrentTool.Name):find("knife"))
+        
+        if IsHoldingKnife then
+            return walljumpKnifePower
+        end
+        
+        return walljumpPower
+    end
+    
+    local function SetupWalljumpForCharacter(Character)
+        if not Character then return end
+        
+        local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+        if not Humanoid then return end
+        
+        local OriginalJumpPower = Humanoid.JumpPower
+        
+        if state.walljumpConnection then
+            pcall(function() state.walljumpConnection:Disconnect() end)
+            state.walljumpConnection = nil
+        end
+        
+        Humanoid.StateChanged:Connect(function(_, NewState)
+            if NewState == Enum.HumanoidStateType.Freefall then
+                state.walljumpFallStart = tick()
+            elseif NewState == Enum.HumanoidStateType.Landed or NewState == Enum.HumanoidStateType.Running then
+                state.walljumpFallStart = 0
+            end
+        end)
+        
+        state.walljumpConnection = UserInputService.JumpRequest:Connect(function()
+            if not Character or not Character.Parent then
+                return
+            end
+            
+            local RootPart = Character:FindFirstChild("HumanoidRootPart")
+            if not RootPart then
+                return
+            end
+            
+            if Humanoid:GetState() ~= Enum.HumanoidStateType.Freefall then
+                return
+            end
+            
+            if state.walljumpFallStart == 0 or (tick() - state.walljumpFallStart) < walljumpCooldown then
+                return
+            end
+            
+            if not CheckForNearbyWall(Character, RootPart) then
+                return
+            end
+            
+            local WallJumpPower = GetWalljumpPower(Character)
+            Humanoid.JumpPower = WallJumpPower
+            Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            
+            if state.walljumpResetConnection then
+                pcall(function() state.walljumpResetConnection:Disconnect() end)
+                state.walljumpResetConnection = nil
+            end
+            
+            state.walljumpResetConnection = Humanoid.StateChanged:Connect(function(_, NewState)
+                if NewState == Enum.HumanoidStateType.Freefall or NewState == Enum.HumanoidStateType.Landed then
+                    pcall(function()
+                        if state.walljumpResetConnection then
+                            state.walljumpResetConnection:Disconnect()
+                            state.walljumpResetConnection = nil
+                        end
+                        Humanoid.JumpPower = OriginalJumpPower
+                    end)
+                end
+            end)
+        end)
+    end
+    
+    if LocalPlayer.Character then
+        SetupWalljumpForCharacter(LocalPlayer.Character)
+    end
+    
+    LocalPlayer.CharacterAdded:Connect(function(Character)
+        Character:WaitForChild("Humanoid")
+        task.wait(0.1)
+        SetupWalljumpForCharacter(Character)
+    end)
+end
+
+SetupWalljump()
+
+local function SetupAntiStomp()
+    local Utilities = shared.Scare and shared.Scare['Utilities']
+    if not Utilities or not Utilities['Anti Stomp'] then
+        return
+    end
+    
+    local function HandleAntiStomp(Character)
+        if not Character then return end
+        
+        if state.antiStompKOConnection then
+            pcall(function() state.antiStompKOConnection:Disconnect() end)
+            state.antiStompKOConnection = nil
+        end
+        
+        local BodyEffects = Character:FindFirstChild("BodyEffects")
+        if not BodyEffects then
+            BodyEffects = Character:WaitForChild("BodyEffects", 5)
+        end
+        if not BodyEffects then return end
+        
+        local KO = BodyEffects:FindFirstChild("K.O")
+        if not KO then
+            KO = BodyEffects:WaitForChild("K.O", 5)
+        end
+        if not KO then return end
+        
+        state.antiStompKOConnection = KO.Changed:Connect(function(Knocked)
+            local Utilities = shared.Scare and shared.Scare['Utilities']
+            if not Utilities or not Utilities['Anti Stomp'] then
+                return
+            end
+            
+            if not Knocked then return end
+            
+            local HRP = Character:FindFirstChild("HumanoidRootPart")
+            if not HRP then return end
+            
+            HRP.CFrame = CFrame.new(0, -2147483647, 0)
+            HRP.Velocity = Vector3.new(65536, 65534, 65536)
+            
+            local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+            if Humanoid then
+                for _ = 1, 10 do
+                    Humanoid.Health = 0
+                    task.wait()
+                end
+            end
+        end)
+    end
+    
+    if LocalPlayer.Character then
+        HandleAntiStomp(LocalPlayer.Character)
+    end
+    
+    if state.antiStompConnection then
+        pcall(function() state.antiStompConnection:Disconnect() end)
+        state.antiStompConnection = nil
+    end
+    
+    state.antiStompConnection = LocalPlayer.CharacterAdded:Connect(HandleAntiStomp)
+end
+
+SetupAntiStomp()
+
+local State = {
+    Targets = { Silent = nil, Trigger = nil, Camera = nil },
+    SilentTargetLocked = false,
+    TriggerTargetLocked = false,
+    CameraTargetLocked = false,
+}
+
+local LastFrame = {
+    FOVVisible = false,
+    ESPVisible = false,
+    PanelVisible = false,
+    TriggerFOVVisible = false,
+    CameraFOVVisible = false,
+}
+
+local function CleanupFOVBoxes()
+    pcall(function()
+        if SilentFOVBox then
+            SilentFOVBox.Visible = false
+            SilentFOVBox:Remove()
+        end
+        if TriggerFOVBox then
+            TriggerFOVBox.Visible = false
+            TriggerFOVBox:Remove()
+        end
+        if CameraFOVBox then
+            CameraFOVBox.Visible = false
+            CameraFOVBox:Remove()
+        end
+    end)
+    
+    pcall(function()
+        if Silent3DFOVPart then
+            Silent3DFOVPart.Transparency = 1
+            Silent3DFOVPart:Destroy()
+        end
+        if Trigger3DFOVPart then
+            Trigger3DFOVPart.Transparency = 1
+            Trigger3DFOVPart:Destroy()
+        end
+        if Camera3DFOVPart then
+            Camera3DFOVPart.Transparency = 1
+            Camera3DFOVPart:Destroy()
+        end
+    end)
+    
+    for _, v in pairs(Workspace:GetChildren()) do
+        if v and v:IsA("Part") then
+            local name = v.Name
+            if name == "Silent3DFOVPart" or name == "Trigger3DFOVPart" or name == "Camera3DFOVPart" then
+                pcall(function()
+                    v.Transparency = 1
+                    v:Destroy()
+                end)
+            end
+        end
+    end
+    
+    if LastFrame then
+        LastFrame.FOVVisible = false
+        LastFrame.TriggerFOVVisible = false
+        LastFrame.CameraFOVVisible = false
+    end
 end
 
 local function FullCleanup()
+    CleanupAvatarHandlers()
+    
     local connections = {}
     for _, service in pairs({RunService, UserInputService, Players}) do
         local events = {
@@ -685,10 +1373,101 @@ local function FullCleanup()
         end)
     end
     
-    local gui1 = CoreGui:FindFirstChild("ScareUI")
-    if gui1 then gui1:Destroy() end
-    local gui2 = CoreGui:FindFirstChild("Scare")
-    if gui2 then gui2:Destroy() end
+    if preRenderConnection then
+        pcall(function()
+            preRenderConnection:Disconnect()
+            preRenderConnection = nil
+        end)
+    end
+    
+    if state.SpeedModConnection then
+        pcall(function()
+            state.SpeedModConnection:Disconnect()
+            state.SpeedModConnection = nil
+        end)
+    end
+    
+    if state.jumpModConnection then
+        pcall(function()
+            state.jumpModConnection:Disconnect()
+            state.jumpModConnection = nil
+        end)
+    end
+    
+    if state.walljumpConnection then
+        pcall(function()
+            state.walljumpConnection:Disconnect()
+            state.walljumpConnection = nil
+        end)
+    end
+    
+    if state.walljumpResetConnection then
+        pcall(function()
+            state.walljumpResetConnection:Disconnect()
+            state.walljumpResetConnection = nil
+        end)
+    end
+    
+    if state.antiStompConnection then
+        pcall(function()
+            state.antiStompConnection:Disconnect()
+            state.antiStompConnection = nil
+        end)
+    end
+    
+    if state.antiStompKOConnection then
+        pcall(function()
+            state.antiStompKOConnection:Disconnect()
+            state.antiStompKOConnection = nil
+        end)
+    end
+    
+    CleanupFOVBoxes()
+    
+    for _, gui in pairs(CoreGui:GetChildren()) do
+        if gui and gui:IsA("ScreenGui") then
+            local name = gui.Name
+            if name == "ScareUI" or name == "Scare" then
+                pcall(function() gui:Destroy() end)
+            end
+        end
+    end
+    
+    if NameESPDrawings then
+        for _, Draw in next, NameESPDrawings do
+            if Draw then pcall(function() Draw:Remove() end) end
+        end
+        NameESPDrawings = {}
+    end
+    
+    pcall(function()
+        if PanelTitle then PanelTitle:Remove() end
+        if PanelLabels then
+            for _, L in next, PanelLabels do
+                if L then L:Remove() end
+            end
+            PanelLabels = {}
+        end
+    end)
+    
+    SilentFOVBox = nil
+    TriggerFOVBox = nil
+    CameraFOVBox = nil
+    Silent3DFOVPart = nil
+    Trigger3DFOVPart = nil
+    Camera3DFOVPart = nil
+    PanelTitle = nil
+    PanelLabels = {}
+    NameESPDrawings = {}
+    UtilityUI = nil
+    
+    LastFrame = {
+        FOVVisible = false,
+        ESPVisible = false,
+        PanelVisible = false,
+        TriggerFOVVisible = false,
+        CameraFOVVisible = false,
+    }
     
     for _, v in next, getgc and getgc() or {} do
         if type(v) == "table" then
@@ -726,14 +1505,6 @@ local function FullCleanup()
     state.triggerLastValidTarget = nil
     state.uninjectSent = true
     state.SpeedModEnabled = false
-    if state.SpeedModConnection then
-        state.SpeedModConnection:Disconnect()
-        state.SpeedModConnection = nil
-    end
-    if state.PlayerHumanoid then
-        state.PlayerHumanoid.WalkSpeed = state.DefaultWalkSpeed
-        state.PlayerHumanoid = nil
-    end
     state.triggerFOVActive = false
     state.sharedTargetLocked = false
     state.sharedTarget = nil
@@ -748,6 +1519,23 @@ local function FullCleanup()
     state.silentOnly = false
     state.triggerOnly = false
     state.cameraOnly = false
+    state.visualsEnabled = false
+    state.namesVisible = false
+    state.panelVisible = false
+    state.jumpModConnection = nil
+    state.jumpDefaultPower = 50
+    state.walljumpConnection = nil
+    state.walljumpResetConnection = nil
+    state.walljumpFallStart = 0
+    state.antiStompConnection = nil
+    state.antiStompKOConnection = nil
+    
+    if state.PlayerHumanoid then
+        pcall(function()
+            state.PlayerHumanoid.WalkSpeed = state.DefaultWalkSpeed
+        end)
+        state.PlayerHumanoid = nil
+    end
     
     local StateTable = State
     if StateTable then
@@ -1249,21 +2037,6 @@ local function IsLeftControlHeld()
     return UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
 end
 
-local State = {
-    Targets = { Silent = nil, Trigger = nil, Camera = nil },
-    SilentTargetLocked = false,
-    TriggerTargetLocked = false,
-    CameraTargetLocked = false,
-}
-
-local LastFrame = {
-    FOVVisible = false,
-    ESPVisible = false,
-    PanelVisible = false,
-    TriggerFOVVisible = false,
-    CameraFOVVisible = false,
-}
-
 local function ClearTargetsForPlayer(Player)
     if State.Targets.Silent == Player then
         State.Targets.Silent = nil
@@ -1655,7 +2428,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
             FullCleanup()
             
             if not stealthState then
-                warn("[Debug] Uninjected Scare.")
             end
             
             return
@@ -2914,9 +3686,7 @@ local function UpdatePanel()
         local ArmorColor = Color3.fromRGB(0, 150, 255)
         local HealthColor = Color3.fromRGB(0, 255, 0)
         local AliasStr = VisualsCfg["Alias"]
-        if type(AliasStr) ~= "string" or AliasStr == "" then AliasStr = "lol" end
-
-        local StatusEnabled = PanelCfg["Status"] == true
+        if type(AliasStr) ~= "string" or AliasStr == "" then AliasStr = "lol" end        local StatusEnabled = PanelCfg["Status"] == true
         local DistanceEnabled = PanelCfg["Distance"] == true
         
         local silentTarget = State.Targets.Silent
