@@ -615,6 +615,8 @@ local state = {
     avatarConnections = {},
     delayConnections = {},
     delayChildConnections = {},
+    emoteSpooferEnabled = false,
+    avatarModificationsApplied = false,
 }
 
 local player = LocalPlayer
@@ -631,7 +633,7 @@ local function IsGameSupported()
         [80973874602881] = true,
         [138995385694035] = true,
         [123974602339071] = true,
-        [126944763674780] = true,
+        [70374175945923] = true,
     }
     if supportedIds[placeId] then return true end
     
@@ -666,8 +668,10 @@ if not IsStealthEnabled() then
     print("table: 0x2503wuh586a02")
 end
 
-local function GetAnimationID(animName)
-    local anims = {
+local AnimationCache = {}
+
+local function GetAnimationID(AnimName)
+    local Animations = {
         Astronaut = {Idle1 = "rbxassetid://891621366", Idle2 = "rbxassetid://891633237", Walk = "rbxassetid://891636393", Run = "rbxassetid://891636393", Fall = "rbxassetid://891617961", Jump = "rbxassetid://891627522", Climb = "rbxassetid://891609353", Swim = "rbxassetid://891639666", SwimIdle = "rbxassetid://891663592"},
         Bold = {Idle1 = "rbxassetid://16738333868", Idle2 = "rbxassetid://16738334710", Walk = "rbxassetid://16738340646", Run = "rbxassetid://16738337225", Fall = "rbxassetid://16738333171", Jump = "rbxassetid://16738336650", Climb = "rbxassetid://16738332169", Swim = "rbxassetid://16738339158", SwimIdle = "rbxassetid://16738339817"},
         Bubbly = {Idle1 = "rbxassetid://910004836", Idle2 = "rbxassetid://910009958", Walk = "rbxassetid://910034870", Run = "rbxassetid://910025107", Fall = "rbxassetid://910001910", Jump = "rbxassetid://910016857", Climb = "rbxassetid://909997997", Swim = "rbxassetid://910028158", SwimIdle = "rbxassetid://910030921"},
@@ -690,160 +694,60 @@ local function GetAnimationID(animName)
         FakeR6 = {Idle1 = "rbxassetid://12521158637", Idle2 = "rbxassetid://12521162526", Walk = "rbxassetid://126997486407971", Run = "rbxassetid://126997486407971", Fall = "rbxassetid://12520972571", Jump = "rbxassetid://12520880485", Climb = "rbxassetid://12520982150", Swim = "rbxassetid://12520993168", SwimIdle = "rbxassetid://2510201162"},
     }
     
-    local pkg = anims[animName]
-    if pkg then
-        return pkg
+    local Pkg = Animations[AnimName]
+    if Pkg then
+        return Pkg
     end
     return nil
 end
 
-local function setAnimations(char, animPkg)
-    local animate = char:FindFirstChild("Animate")
-    if not animate then
-        animate = char:WaitForChild("Animate", 10)
+local function SetAnimations(Char, AnimPkg)
+    local Animate = Char:FindFirstChild("Animate")
+    if not Animate then
+        Animate = Char:WaitForChild("Animate", 10)
+        if not Animate then return end
     end
-    if not animate then return end
-    animate.Enabled = false
+    Animate.Enabled = false
     
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hum then
-        hum = char:WaitForChild("Humanoid", 10)
+    local Hum = Char:FindFirstChildOfClass("Humanoid")
+    if not Hum then
+        Hum = Char:WaitForChild("Humanoid", 10)
+        if not Hum then return end
     end
-    if not hum then 
-        animate.Enabled = true
-        return 
-    end
-    local animator = hum:FindFirstChildOfClass("Animator")
-    if not animator then
-        animator = hum:WaitForChild("Animator", 10)
-    end
-    if not animator then 
-        animate.Enabled = true
-        return 
+    local Animator = Hum:FindFirstChild("Animator")
+    if not Animator then
+        Animator = Hum:WaitForChild("Animator", 10)
+        if not Animator then return end
     end
     
-    for _, track in pairs(animator:GetPlayingAnimationTracks()) do
-        pcall(function() track:Stop() end)
+    for _, Track in pairs(Animator:GetPlayingAnimationTracks()) do
+        Track:Stop()
     end
     
-    local idle = animate:FindFirstChild("idle")
-    local walk = animate:FindFirstChild("walk")
-    local run = animate:FindFirstChild("run")
-    local swim = animate:FindFirstChild("swim")
-    local swimidle = animate:FindFirstChild("swimidle")
-    local jump = animate:FindFirstChild("jump")
-    local fall = animate:FindFirstChild("fall")
-    local climb = animate:FindFirstChild("climb")
+    local Idle = Animate:FindFirstChild("idle")
+    local Walk = Animate:FindFirstChild("walk")
+    local Run = Animate:FindFirstChild("run")
+    local Swim = Animate:FindFirstChild("swim")
+    local SwimIdle = Animate:FindFirstChild("swimidle")
+    local Jump = Animate:FindFirstChild("jump")
+    local Fall = Animate:FindFirstChild("fall")
+    local Climb = Animate:FindFirstChild("climb")
     
-    if idle then
-        local a1 = idle:FindFirstChild("Animation1")
-        local a2 = idle:FindFirstChild("Animation2")
-        if a1 and animPkg.Idle1 then a1.AnimationId = animPkg.Idle1 end
-        if a2 and animPkg.Idle2 then a2.AnimationId = animPkg.Idle2 end
+    if Idle then
+        local A1 = Idle:FindFirstChild("Animation1")
+        local A2 = Idle:FindFirstChild("Animation2")
+        if A1 and AnimPkg.Idle1 then A1.AnimationId = AnimPkg.Idle1 end
+        if A2 and AnimPkg.Idle2 then A2.AnimationId = AnimPkg.Idle2 end
     end
-    if walk then local a = walk:FindFirstChild("WalkAnim"); if a and animPkg.Walk then a.AnimationId = animPkg.Walk end end
-    if run then local a = run:FindFirstChild("RunAnim"); if a and animPkg.Run then a.AnimationId = animPkg.Run end end
-    if swim then local a = swim:FindFirstChild("Swim"); if a and animPkg.Swim then a.AnimationId = animPkg.Swim end end
-    if swimidle then local a = swimidle:FindFirstChild("SwimIdle"); if a and animPkg.SwimIdle then a.AnimationId = animPkg.SwimIdle end end
-    if jump then local a = jump:FindFirstChild("JumpAnim"); if a and animPkg.Jump then a.AnimationId = animPkg.Jump end end
-    if fall then local a = fall:FindFirstChild("FallAnim"); if a and animPkg.Fall then a.AnimationId = animPkg.Fall end end
-    if climb then local a = climb:FindFirstChild("ClimbAnim"); if a and animPkg.Climb then a.AnimationId = animPkg.Climb end end
+    if Walk then local A = Walk:FindFirstChild("WalkAnim"); if A and AnimPkg.Walk then A.AnimationId = AnimPkg.Walk end end
+    if Run then local A = Run:FindFirstChild("RunAnim"); if A and AnimPkg.Run then A.AnimationId = AnimPkg.Run end end
+    if Swim then local A = Swim:FindFirstChild("Swim"); if A and AnimPkg.Swim then A.AnimationId = AnimPkg.Swim end end
+    if SwimIdle then local A = SwimIdle:FindFirstChild("SwimIdle"); if A and AnimPkg.SwimIdle then A.AnimationId = AnimPkg.SwimIdle end end
+    if Jump then local A = Jump:FindFirstChild("JumpAnim"); if A and AnimPkg.Jump then A.AnimationId = AnimPkg.Jump end end
+    if Fall then local A = Fall:FindFirstChild("FallAnim"); if A and AnimPkg.Fall then A.AnimationId = AnimPkg.Fall end end
+    if Climb then local A = Climb:FindFirstChild("ClimbAnim"); if A and AnimPkg.Climb then A.AnimationId = AnimPkg.Climb end end
     
-    animate.Enabled = true
-end
-
-local function applyAnimations(char)
-    local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
-    if not AvatarCfg then return end
-    local AnimSpoofer = AvatarCfg['Animation Spoofer']
-    if not AnimSpoofer then return end
-    
-    local AnimEnabled = AnimSpoofer['Enabled']
-    if not AnimEnabled then return end
-    
-    local animPkg = {
-        Idle1 = nil, Idle2 = nil, Walk = nil, Run = nil,
-        Fall = nil, Jump = nil, Climb = nil, Swim = nil, SwimIdle = nil
-    }
-    
-    local function getAnimationForState(stateName)
-        local stateValue = AnimSpoofer[stateName]
-        if stateValue and stateValue ~= "" then
-            local pkg = GetAnimationID(stateValue)
-            if pkg then
-                return pkg
-            end
-        end
-        return nil
-    end
-    
-    local idlePkg = getAnimationForState("Idle")
-    if idlePkg then
-        animPkg.Idle1 = idlePkg.Idle1
-        animPkg.Idle2 = idlePkg.Idle2
-    else
-        local fallbackPkg = GetAnimationID("Zombie")
-        if fallbackPkg then
-            animPkg.Idle1 = fallbackPkg.Idle1
-            animPkg.Idle2 = fallbackPkg.Idle2
-        end
-    end
-    
-    local stateMap = {
-        Walk = "Walk",
-        Run = "Run",
-        Fall = "Fall",
-        Jump = "Jump",
-        Climb = "Climb",
-        Swim = "Swim",
-        SwimIdle = "SwimIdle"
-    }
-    
-    for animKey, stateKey in pairs(stateMap) do
-        local pkg = getAnimationForState(stateKey)
-        if pkg and pkg[animKey] then
-            animPkg[animKey] = pkg[animKey]
-        else
-            local fallbackPkg = GetAnimationID("Zombie")
-            if fallbackPkg and fallbackPkg[animKey] then
-                animPkg[animKey] = fallbackPkg[animKey]
-            end
-        end
-    end
-    
-    setAnimations(char, animPkg)
-end
-
-local function applyEmoteSpoofer(char)
-    local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
-    if not AvatarCfg then return end
-    local EmoteSpoofer = AvatarCfg['Emote Spoofer']
-    if not EmoteSpoofer then return end
-    
-    local EmoteEnabled = EmoteSpoofer['Enabled']
-    if not EmoteEnabled then return end
-    
-    local function setEmoteSlot(slotNumber, emoteId)
-        local emoteService = game:GetService("EmotesService")
-        if not emoteService then return end
-        
-        pcall(function()
-            emoteService:SetEmote(slotNumber, emoteId)
-        end)
-    end
-    
-    local slots = {
-        {key = "Slot 1", num = 1},
-        {key = "Slot 2", num = 2},
-        {key = "Slot 3", num = 3},
-    }
-    
-    for _, slot in pairs(slots) do
-        local emoteId = EmoteSpoofer[slot.key]
-        if emoteId and emoteId ~= "" and emoteId ~= "PLACE A SELECTED EMOTE ID HERE" then
-            setEmoteSlot(slot.num, emoteId)
-        end
-    end
+    Animate.Enabled = true
 end
 
 local function MakeHeadless(Character)
@@ -942,7 +846,7 @@ local function ApplyKorblox(Character)
     end
 end
 
-local function ApplyAvatarSize(Character)
+local function ApplySkinny(Character)
     local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
     if not AvatarCfg then return end
     local Config = AvatarCfg['Configuration']
@@ -979,55 +883,179 @@ local function ApplyAvatarSize(Character)
     end
 end
 
-local function CleanupAvatarHandlers()
-    if AvatarConnection then
-        pcall(function() AvatarConnection:Disconnect() end)
-        AvatarConnection = nil
+local function ApplyAnimationSpoofer(Character)
+    local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
+    if not AvatarCfg then return end
+    local AnimSpoofer = AvatarCfg['Animation Spoofer']
+    if not AnimSpoofer then return end
+    
+    local AnimEnabled = AnimSpoofer['Enabled']
+    if not AnimEnabled then return end
+    
+    local AnimPkg = {
+        Idle1 = nil, Idle2 = nil, Walk = nil, Run = nil,
+        Fall = nil, Jump = nil, Climb = nil, Swim = nil, SwimIdle = nil
+    }
+    
+    local DefaultPkg = GetAnimationID(AnimSpoofer['Idle'] or AnimSpoofer['Walk'] or "Zombie")
+    if not DefaultPkg then return end
+    
+    AnimPkg.Idle1 = DefaultPkg.Idle1
+    AnimPkg.Idle2 = DefaultPkg.Idle2
+    AnimPkg.Walk = DefaultPkg.Walk
+    AnimPkg.Run = DefaultPkg.Run
+    AnimPkg.Fall = DefaultPkg.Fall
+    AnimPkg.Jump = DefaultPkg.Jump
+    AnimPkg.Climb = DefaultPkg.Climb
+    AnimPkg.Swim = DefaultPkg.Swim
+    AnimPkg.SwimIdle = DefaultPkg.SwimIdle
+    
+    for AnimType, AnimName in pairs(AnimSpoofer) do
+        if AnimType ~= 'Enabled' then
+            local Pkg = GetAnimationID(AnimName)
+            if Pkg then
+                local Key = AnimType
+                if Key == 'Idle' then
+                    AnimPkg.Idle1 = Pkg.Idle1
+                    AnimPkg.Idle2 = Pkg.Idle2
+                elseif AnimPkg[Key] ~= nil then
+                    AnimPkg[Key] = Pkg[Key]
+                end
+            end
+        end
     end
     
-    for _, conn in pairs(state.avatarConnections) do
-        pcall(function() conn:Disconnect() end)
-    end
-    state.avatarConnections = {}
-    
-    for _, conn in pairs(state.delayChildConnections) do
-        pcall(function() conn:Disconnect() end)
-    end
-    state.delayChildConnections = {}
+    SetAnimations(Character, AnimPkg)
 end
 
-local function SetupAvatarModifications(Character)
+local function ApplyEmoteSpoofer(Character)
+    local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
+    if not AvatarCfg then return end
+    local EmoteCfg = AvatarCfg['Emote Spoofer']
+    if not EmoteCfg or not EmoteCfg['Enabled'] then
+        return
+    end
+    
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    if not Humanoid then return end
+    
+    local HumanoidDescription = Humanoid:FindFirstChild("HumanoidDescription")
+    if not HumanoidDescription then
+        return
+    end
+    
+    local EmoteTable = {}
+    local EquippedEmotes = {}
+    
+    for Slot = 1, 3 do
+        local SlotKey = "Slot " .. Slot
+        local Value = EmoteCfg[SlotKey]
+        
+        if Value and Value ~= "" and Value ~= "PLACE A SELECTED EMOTE ID HERE" then
+            local EmoteId = tonumber(Value)
+            if not EmoteId then
+                EmoteId = tonumber(Value:match("catalog/(%d+)"))
+            end
+            
+            if EmoteId then
+                local EmoteName = "Emote" .. Slot
+                EmoteTable[EmoteName] = {EmoteId}
+                table.insert(EquippedEmotes, EmoteName)
+            end
+        end
+    end
+    
+    if #EquippedEmotes == 0 then
+        EmoteTable = {
+            ["Im-Talm-Bout-Innit-OG"] = {117301403779781},
+        }
+        EquippedEmotes = {"Im-Talm-Bout-Innit-OG"}
+    end
+    
+    pcall(function()
+        HumanoidDescription:SetEmotes(EmoteTable)
+        HumanoidDescription:SetEquippedEmotes(EquippedEmotes)
+    end)
+    
+    state.emoteSpooferEnabled = true
+end
+
+local function ApplyAvatarSpoofer(Character)
+    local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
+    if not AvatarCfg then return end
+    local AvatarSpoofer = AvatarCfg['Avatar Spoofer']
+    if not AvatarSpoofer then return end
+    
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    if not Humanoid then return end
+    
+    local Username = AvatarSpoofer['Username']
+    if Username and Username ~= "" then
+        local Success, Desc = pcall(function()
+            return Players:GetHumanoidDescriptionFromUserId(Players:GetUserIdFromNameAsync(Username))
+        end)
+        if Success and Desc then
+            pcall(function()
+                Humanoid:ApplyDescription(Desc)
+            end)
+        end
+    end
+end
+
+local function SetupDelayModifications(Character)
+    if not Character then return end
+    
+    local DelayCfg = shared.Scare and shared.Scare['Delay Modification']
+    if not DelayCfg then return end
+    local Config = DelayCfg['Configuration']
+    if not Config or not Config['Enabled'] then return end
+    
+    local Delay = 0
+    
+    local function ApplyDelay(Tool)
+        if not Tool:IsA("Tool") then return end
+        for Index, Connection in pairs(getconnections(Tool.Activated)) do
+            local Info = debug.getinfo(Connection.Function)
+            for i = 1, Info.nups do
+                local c, n = debug.getupvalue(Connection.Function, i)
+                if type(c) == "number" then 
+                    debug.setupvalue(Connection.Function, i, Delay)
+                end
+            end
+        end
+    end
+    
+    for _, Tool in pairs(Character:GetChildren()) do
+        if Tool:IsA("Tool") then
+            task.wait(0.1)
+            ApplyDelay(Tool)
+        end
+    end
+    
+    local childAddedConn = Character.ChildAdded:Connect(function(Tool)
+        if Tool:IsA("Tool") then
+            task.wait(0.1)
+            ApplyDelay(Tool)
+        end
+    end)
+    table.insert(state.delayChildConnections, childAddedConn)
+end
+
+local function ApplyAvatarModifications(Character)
     if not Character then return end
     
     Character:WaitForChild("Humanoid", 5)
     task.wait(0.1)
     
+    ApplySkinny(Character)
     ApplyHeadless(Character)
     ApplyKorblox(Character)
-    ApplyAvatarSize(Character)
-    applyAnimations(Character)
-    applyEmoteSpoofer(Character)
+    ApplyAnimationSpoofer(Character)
+    ApplyEmoteSpoofer(Character)
+    ApplyAvatarSpoofer(Character)
     SetupDelayModifications(Character)
-end
-
-local AvatarConnection = nil
-
-local function SetupAvatarHandlers()
-    if AvatarConnection then
-        pcall(function() AvatarConnection:Disconnect() end)
-        AvatarConnection = nil
-    end
     
-    for _, conn in pairs(state.avatarConnections) do
-        pcall(function() conn:Disconnect() end)
-    end
-    state.avatarConnections = {}
-    
-    AvatarConnection = LocalPlayer.CharacterAdded:Connect(SetupAvatarModifications)
-    
-    if LocalPlayer.Character then
-        SetupAvatarModifications(LocalPlayer.Character)
-    end
+    state.avatarModificationsApplied = true
 end
 
 local function CleanupAvatarHandlers()
@@ -1041,18 +1069,11 @@ local function CleanupAvatarHandlers()
     end
     state.avatarConnections = {}
     
-    for _, conn in pairs(state.delayConnections) do
-        pcall(function() conn:Disconnect() end)
-    end
-    state.delayConnections = {}
-    
     for _, conn in pairs(state.delayChildConnections) do
         pcall(function() conn:Disconnect() end)
     end
     state.delayChildConnections = {}
 end
-
-SetupAvatarHandlers()
 
 local function SetupNoJumpCooldown()
     local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
@@ -1086,8 +1107,6 @@ local function SetupNoJumpCooldown()
     
     LocalPlayer.CharacterAdded:Connect(RemoveJumpCooldown)
 end
-
-SetupNoJumpCooldown()
 
 local function SetupWalljump()
     local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
@@ -1211,8 +1230,6 @@ local function SetupWalljump()
     end)
 end
 
-SetupWalljump()
-
 local function SetupAntiStomp()
     local Utilities = shared.Scare and shared.Scare['Utilities']
     if not Utilities or not Utilities['Anti Stomp'] then
@@ -1275,7 +1292,54 @@ local function SetupAntiStomp()
     state.antiStompConnection = LocalPlayer.CharacterAdded:Connect(HandleAntiStomp)
 end
 
+local function SetupJumpFeatures()
+    local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
+    if not JumpSettings then return end
+    
+    if JumpSettings['No Jump Cooldown'] then
+        SetupNoJumpCooldown()
+    end
+    
+    local WalljumpCfg = JumpSettings['Walljump']
+    if WalljumpCfg and WalljumpCfg['Enabled'] then
+        SetupWalljump()
+    end
+end
+
+SetupJumpFeatures()
 SetupAntiStomp()
+
+local function SetupCharacter(Character)
+    SetupJumpFeatures()
+    ApplyAvatarModifications(Character)
+end
+
+local AvatarConnection = nil
+
+local function SetupAvatarHandlers()
+    if AvatarConnection then
+        pcall(function() AvatarConnection:Disconnect() end)
+        AvatarConnection = nil
+    end
+    
+    for _, conn in pairs(state.avatarConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    state.avatarConnections = {}
+    
+    for _, conn in pairs(state.delayChildConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    state.delayChildConnections = {}
+    
+    AvatarConnection = LocalPlayer.CharacterAdded:Connect(SetupCharacter)
+    
+    if LocalPlayer.Character then
+        SetupCharacter(LocalPlayer.Character)
+    end
+end
+
+SetupAvatarHandlers()
 
 local State = {
     Targets = { Silent = nil, Trigger = nil, Camera = nil },
@@ -1529,6 +1593,18 @@ local function FullCleanup()
     state.walljumpFallStart = 0
     state.antiStompConnection = nil
     state.antiStompKOConnection = nil
+    state.emoteSpooferEnabled = false
+    state.avatarModificationsApplied = false
+    
+    for _, conn in pairs(state.delayConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    state.delayConnections = {}
+    
+    for _, conn in pairs(state.delayChildConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    state.delayChildConnections = {}
     
     if state.PlayerHumanoid then
         pcall(function()
@@ -2426,9 +2502,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
             end
             
             FullCleanup()
-            
-            if not stealthState then
-            end
             
             return
         end
@@ -3686,7 +3759,8 @@ local function UpdatePanel()
         local ArmorColor = Color3.fromRGB(0, 150, 255)
         local HealthColor = Color3.fromRGB(0, 255, 0)
         local AliasStr = VisualsCfg["Alias"]
-        if type(AliasStr) ~= "string" or AliasStr == "" then AliasStr = "lol" end        local StatusEnabled = PanelCfg["Status"] == true
+        if type(AliasStr) ~= "string" or AliasStr == "" then AliasStr = "lol" end
+        local StatusEnabled = PanelCfg["Status"] == true
         local DistanceEnabled = PanelCfg["Distance"] == true
         
         local silentTarget = State.Targets.Silent
