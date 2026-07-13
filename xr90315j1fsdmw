@@ -1292,6 +1292,25 @@ local function SetupAntiStomp()
     state.antiStompConnection = LocalPlayer.CharacterAdded:Connect(HandleAntiStomp)
 end
 
+local function SetupAntiFall(Character)
+    if not Character then return end
+    local Humanoid = Character:FindFirstChildOfClass('Humanoid') or Character:WaitForChild('Humanoid', 10)
+    if not Humanoid then return end
+    
+    local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
+    if not JumpSettings then return end
+    
+    Humanoid.StateChanged:Connect(function(_, NewState)
+        if not JumpSettings['AntiFall'] then return end
+        if NewState == Enum.HumanoidStateType.FallingDown or NewState == Enum.HumanoidStateType.Ragdoll then
+            Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
+    end)
+end
+
+if LocalPlayer.Character then SetupAntiFall(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(SetupAntiFall)
+
 local function SetupJumpFeatures()
     local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
     if not JumpSettings then return end
