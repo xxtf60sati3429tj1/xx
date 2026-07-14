@@ -73,7 +73,6 @@ local CoreGui = game:GetService("CoreGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
-local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -103,8 +102,6 @@ local function getFOVConfig(mode, fovType)
         local y = scale["Y"] or 11
         local z = scale["Z"] or 11
         return { x = x, y = y, z = z }
-    elseif fovType == "Precise" then
-        return { method = "Precise" }
     end
     return nil
 end
@@ -338,72 +335,56 @@ if LRM_INIT_SCRIPT then
 end
 
 local function IsSameCrew(Player)
-    local PlayerCrew = Player and Player:GetAttribute("CrewID")
-    local ClientCrew = LocalPlayer:GetAttribute("CrewID")
-    return PlayerCrew and ClientCrew and PlayerCrew == ClientCrew or false
+    local LocalCrew = LocalPlayer:GetAttribute("CrewName")
+    local TargetCrew = Player:GetAttribute("CrewName")
+    return LocalCrew and TargetCrew and LocalCrew == TargetCrew
 end
 
 local function IsTargetDead(Player)
-    if not Player then
-        return true
-    end
+    if not Player then return true end
     local Character = Player.Character
-    if not Character then
-        return true
-    end
-    if not Character.Parent then
-        return true
-    end
+    if not Character then return true end
+    if not Character.Parent then return true end
     local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    if not Humanoid then
-        return true
-    end
-    if Humanoid.Health <= 0 then
-        return true
-    end
+    if not Humanoid then return true end
+    if Humanoid.Health <= 0 then return true end
     local Head = Character:FindFirstChild("Head")
-    if not Head then
-        return true
-    end
-    if not Head.Parent then
-        return true
-    end
+    if not Head then return true end
+    if not Head.Parent then return true end
     return false
 end
 
 local function IsPlayerKnocked(Player)
-    local Character = Player and Player.Character
-    if not Character then return false end
-    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    if Humanoid and Humanoid.Health <= 0 then
-        return true
-    end
-    local BodyEffects = Character:FindFirstChild("BodyEffects")
+    if not Player.Character then return false end
+    local BodyEffects = Player.Character:FindFirstChild("BodyEffects")
     if BodyEffects then
         local KO = BodyEffects:FindFirstChild("K.O")
-        if KO and KO.Value == true then
-            return true
-        end
-    end
-    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
-    if HumanoidRootPart then
-        local knocked = HumanoidRootPart:GetAttribute("Knocked")
-        if knocked then
-            return true
-        end
+        local Knocked = BodyEffects:FindFirstChild("Knocked")
+        return (KO and KO.Value == true) or (Knocked and Knocked.Value == true)
     end
     return false
 end
 
 local function IsLocalPlayerKnocked()
-    return IsPlayerKnocked(LocalPlayer)
+    if not LocalPlayer.Character then return false end
+    local BodyEffects = LocalPlayer.Character:FindFirstChild("BodyEffects")
+    if BodyEffects then
+        local KO = BodyEffects:FindFirstChild("K.O")
+        local Knocked = BodyEffects:FindFirstChild("Knocked")
+        return (KO and KO.Value == true) or (Knocked and Knocked.Value == true)
+    end
+    return false
 end
 
 local function HasForcefieldOrInvis(Player)
-    local Character = Player and Player.Character
-    if not Character then return false end
-    if Character:FindFirstChildOfClass("ForceField") then return true end
-    if Character:FindFirstChild("FORCEFIELD") then return true end
+    if not Player.Character then return false end
+    local Humanoid = Player.Character:FindFirstChildOfClass("Humanoid")
+    if Humanoid and Humanoid:GetAttribute("Invisibility") == true then
+        return true
+    end
+    if Player.Character:FindFirstChild("ForceField") then
+        return true
+    end
     return false
 end
 
@@ -413,17 +394,17 @@ local function IsInVehicle(Player)
     return Humanoid and Humanoid.Sit or false
 end
 
-local function IsTargetVisible(Part)
-    if not Part then return false end
-    local Origin = Camera.CFrame.Position
-    local Direction = Part.Position - Origin
+local function IsTargetVisible(TargetPart)
+    if not TargetPart or not TargetPart.Parent then return false end
     local RayParams = RaycastParams.new()
-    RayParams.FilterType = Enum.RaycastFilterType.Exclude
-    RayParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    RayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    RayParams.FilterDescendantsInstances = {LocalPlayer.Character, TargetPart.Parent}
     RayParams.IgnoreWater = true
-    local Result = Workspace:Raycast(Origin, Direction, RayParams)
-    if Result and Result.Instance then
-        if Result.Instance:IsDescendantOf(Part.Parent) then
+    local Origin = Camera.CFrame.Position
+    local Direction = (TargetPart.Position - Origin).Unit * (TargetPart.Position - Origin).Magnitude
+    local Hit = Workspace:Raycast(Origin, Direction, RayParams)
+    if Hit then
+        if Hit.Instance:IsDescendantOf(TargetPart.Parent) then
             return true
         end
         return false
@@ -431,78 +412,32 @@ local function IsTargetVisible(Part)
     return true
 end
 
-local function IsTyping()
-    local chat = game:GetService("Chat")
-    if chat and chat:FindFirstChild("ChatBar") then
-        local chatBar = chat:FindFirstChild("ChatBar")
-        if chatBar and chatBar:IsA("Frame") then
-            local textBox = chatBar:FindFirstChild("TextBox")
-            if textBox and textBox:IsA("TextBox") then
-                return textBox.Focused
-            end
-        end
-    end
-    return false
-end
-
-local function IsGrabbed(Player)
-    local Character = Player and Player.Character
-    if not Character then return false end
-    local GrabConstraint = Character:FindFirstChild("GRABBING_CONSTRAINT") or Character:FindFirstChild("GRABBED_CONSTRAINT")
-    if GrabConstraint then
-        return true
-    end
-    local humanoid = Character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        local grabbing = humanoid:GetAttribute("Grabbing")
-        if grabbing then return true end
-    end
-    return false
-end
-
-local function GetConfig()
-    return shared.Scare
-end
-
-local function CheckConditions(Player, SkipVisibility, mode)
-    local Config = GetConfig()
+local function CheckChecks(Player, mode)
+    local Config = shared.Scare
     if not Config then return true end
     
-    local Conditions = Config['Condition Checks']
-    if not Conditions then return true end
+    local ModeCfg = Config[mode]
+    if not ModeCfg then return true end
     
-    local ModeConditions = Conditions[mode]
-    if not ModeConditions then return true end
+    local Checks = ModeCfg["Checks"]
+    if not Checks then return true end
     
-    if IsTargetDead(Player) then
-        return false
-    end
+    if IsTargetDead(Player) then return false end
+    if IsPlayerKnocked(Player) then return false end
     
-    if IsPlayerKnocked(Player) then
-        return false
-    end
+    if Checks["Crew"] == true and IsSameCrew(Player) then return false end
+    if Checks["Knocked"] == true and IsPlayerKnocked(Player) then return false end
+    if Checks["Self-Knocked"] == true and IsLocalPlayerKnocked() then return false end
+    if Checks["ForceField"] == true and HasForcefieldOrInvis(Player) then return false end
+    if Checks["Vehicle"] == true and IsInVehicle(Player) then return false end
     
-    if ModeConditions['Crew'] == true and IsSameCrew(Player) then
-        return false
-    end
-    if ModeConditions['Grabbed'] == true and IsGrabbed(Player) then
-        return false
-    end
-    if ModeConditions['Knocked'] == true and IsPlayerKnocked(Player) then
-        return false
-    end
-    if ModeConditions['Self-Knocked'] == true and IsLocalPlayerKnocked() then
-        return false
-    end
-    if ModeConditions['ForceField'] == true and HasForcefieldOrInvis(Player) then
-        return false
-    end
-    if ModeConditions['Vehicle'] == true and IsInVehicle(Player) then
-        return false
-    end
-    if not SkipVisibility and ModeConditions['Visible'] == true then
-        local Head = Player.Character:FindFirstChild("Head")
-        if Head and not IsTargetVisible(Head) then
+    if Checks["Visible"] == true then
+        local Head = Player.Character and Player.Character:FindFirstChild("Head")
+        if Head then
+            if not IsTargetVisible(Head) then
+                return false
+            end
+        else
             return false
         end
     end
@@ -510,61 +445,35 @@ local function CheckConditions(Player, SkipVisibility, mode)
     return true
 end
 
-local function CheckConditionsExceptVisible(Player, mode)
-    local Config = GetConfig()
+local function CheckChecksNoVisible(Player, mode)
+    local Config = shared.Scare
     if not Config then return true end
     
-    local Conditions = Config['Condition Checks']
-    if not Conditions then return true end
+    local ModeCfg = Config[mode]
+    if not ModeCfg then return true end
     
-    local ModeConditions = Conditions[mode]
-    if not ModeConditions then return true end
+    local Checks = ModeCfg["Checks"]
+    if not Checks then return true end
     
-    if IsTargetDead(Player) then
-        return false
-    end
+    if IsTargetDead(Player) then return false end
+    if IsPlayerKnocked(Player) then return false end
     
-    if IsPlayerKnocked(Player) then
-        return false
-    end
-    
-    if ModeConditions['Crew'] == true and IsSameCrew(Player) then
-        return false
-    end
-    if ModeConditions['Grabbed'] == true and IsGrabbed(Player) then
-        return false
-    end
-    if ModeConditions['Knocked'] == true and IsPlayerKnocked(Player) then
-        return false
-    end
-    if ModeConditions['Self-Knocked'] == true and IsLocalPlayerKnocked() then
-        return false
-    end
-    if ModeConditions['ForceField'] == true and HasForcefieldOrInvis(Player) then
-        return false
-    end
-    if ModeConditions['Vehicle'] == true and IsInVehicle(Player) then
-        return false
-    end
+    if Checks["Crew"] == true and IsSameCrew(Player) then return false end
+    if Checks["Knocked"] == true and IsPlayerKnocked(Player) then return false end
+    if Checks["Self-Knocked"] == true and IsLocalPlayerKnocked() then return false end
+    if Checks["ForceField"] == true and HasForcefieldOrInvis(Player) then return false end
+    if Checks["Vehicle"] == true and IsInVehicle(Player) then return false end
     
     return true
 end
 
 local function IsPlayerValid(Player, mode)
-    if not Player or Player == LocalPlayer then
-        return false
-    end
-    if not Player.Character then
-        return false
-    end
+    if not Player or Player == LocalPlayer then return false end
+    if not Player.Character then return false end
     local Humanoid = Player.Character:FindFirstChildOfClass("Humanoid")
-    if not Humanoid or Humanoid.Health <= 0 then
-        return false
-    end
-    if not Player.Character:FindFirstChild("Head") then
-        return false
-    end
-    return CheckConditions(Player, false, mode)
+    if not Humanoid or Humanoid.Health <= 0 then return false end
+    if not Player.Character:FindFirstChild("Head") then return false end
+    return CheckChecksNoVisible(Player, mode)
 end
 
 local state = {
@@ -652,20 +561,8 @@ local function IsGameSupported()
 end
 
 if not IsGameSupported() then
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
     LocalPlayer:Kick("This game is not supported, If you think this is a mistake please contact support.")
     return
-end
-
-local function IsStealthEnabled()
-    return shared.Scare and shared.Scare['Safety System']
-        and shared.Scare['Safety System']['Stealth']
-        and shared.Scare['Safety System']['Stealth']['Enabled'] == true
-end
-
-if not IsStealthEnabled() then
-    print("table: 0x2503wuh586a02")
 end
 
 local AnimationCache = {}
@@ -695,9 +592,7 @@ local function GetAnimationID(AnimName)
     }
     
     local Pkg = Animations[AnimName]
-    if Pkg then
-        return Pkg
-    end
+    if Pkg then return Pkg end
     return nil
 end
 
@@ -757,9 +652,7 @@ local function MakeHeadless(Character)
     if not Head then return end
     
     local Face = Head:FindFirstChild("face")
-    if Face then
-        pcall(function() Face:Destroy() end)
-    end
+    if Face then pcall(function() Face:Destroy() end) end
     
     Head.Transparency = 1
     
@@ -768,9 +661,7 @@ local function MakeHeadless(Character)
         for _, child in pairs(hatFolder:GetChildren()) do
             if child:IsA("BasePart") then
                 local handle = child:FindFirstChild("Handle")
-                if handle then
-                    handle.Transparency = 1
-                end
+                if handle then handle.Transparency = 1 end
             end
         end
     end
@@ -780,9 +671,7 @@ local function MakeHeadless(Character)
         for _, child in pairs(accessories:GetChildren()) do
             if child:IsA("Accessory") then
                 local handle = child:FindFirstChild("Handle")
-                if handle then
-                    handle.Transparency = 1
-                end
+                if handle then handle.Transparency = 1 end
             end
         end
     end
@@ -803,9 +692,7 @@ local function ApplyHeadless(Character)
     if Humanoid then
         local DiedConnection = Humanoid.Died:Connect(function()
             local Head = Character:FindFirstChild("Head")
-            if Head then
-                Head.Transparency = 0
-            end
+            if Head then Head.Transparency = 0 end
         end)
         table.insert(state.avatarConnections, DiedConnection)
     end
@@ -877,9 +764,7 @@ local function ApplySkinny(Character)
     
     for _, name in pairs(parts) do
         local part = Character:FindFirstChild(name)
-        if part then
-            scalePart(part)
-        end
+        if part then scalePart(part) end
     end
 end
 
@@ -932,17 +817,13 @@ local function ApplyEmoteSpoofer(Character)
     local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
     if not AvatarCfg then return end
     local EmoteCfg = AvatarCfg['Emote Spoofer']
-    if not EmoteCfg or not EmoteCfg['Enabled'] then
-        return
-    end
+    if not EmoteCfg or not EmoteCfg['Enabled'] then return end
     
     local Humanoid = Character:FindFirstChildOfClass("Humanoid")
     if not Humanoid then return end
     
     local HumanoidDescription = Humanoid:FindFirstChild("HumanoidDescription")
-    if not HumanoidDescription then
-        return
-    end
+    if not HumanoidDescription then return end
     
     local EmoteTable = {}
     local EquippedEmotes = {}
@@ -1135,9 +1016,7 @@ local function SetupWalljump()
         }
         for _, Direction in next, RayDirections do
             local Result = Workspace:Raycast(StartPos, Direction * 3, WallRayParams)
-            if Result then
-                return true
-            end
+            if Result then return true end
         end
         return false
     end
@@ -1146,10 +1025,7 @@ local function SetupWalljump()
         local CurrentTool = Character:FindFirstChildOfClass("Tool")
         local IsHoldingKnife = CurrentTool and (CurrentTool.Name == "[Knife]" or string.lower(CurrentTool.Name):find("knife"))
         
-        if IsHoldingKnife then
-            return walljumpKnifePower
-        end
-        
+        if IsHoldingKnife then return walljumpKnifePower end
         return walljumpPower
     end
     
@@ -1175,26 +1051,16 @@ local function SetupWalljump()
         end)
         
         state.walljumpConnection = UserInputService.JumpRequest:Connect(function()
-            if not Character or not Character.Parent then
-                return
-            end
+            if not Character or not Character.Parent then return end
             
             local RootPart = Character:FindFirstChild("HumanoidRootPart")
-            if not RootPart then
-                return
-            end
+            if not RootPart then return end
             
-            if Humanoid:GetState() ~= Enum.HumanoidStateType.Freefall then
-                return
-            end
+            if Humanoid:GetState() ~= Enum.HumanoidStateType.Freefall then return end
             
-            if state.walljumpFallStart == 0 or (tick() - state.walljumpFallStart) < walljumpCooldown then
-                return
-            end
+            if state.walljumpFallStart == 0 or (tick() - state.walljumpFallStart) < walljumpCooldown then return end
             
-            if not CheckForNearbyWall(Character, RootPart) then
-                return
-            end
+            if not CheckForNearbyWall(Character, RootPart) then return end
             
             local WallJumpPower = GetWalljumpPower(Character)
             Humanoid.JumpPower = WallJumpPower
@@ -1232,9 +1098,7 @@ end
 
 local function SetupAntiStomp()
     local PanicSystem = shared.Scare and shared.Scare['Panic System']
-    if not PanicSystem or not PanicSystem['Anti Stomp'] then
-        return
-    end
+    if not PanicSystem or not PanicSystem['Anti Stomp'] then return end
     
     local function HandleAntiStomp(Character)
         if not Character then return end
@@ -1258,9 +1122,7 @@ local function SetupAntiStomp()
         
         state.antiStompKOConnection = KO.Changed:Connect(function(Knocked)
             local PanicSystem = shared.Scare and shared.Scare['Panic System']
-            if not PanicSystem or not PanicSystem['Anti Stomp'] then
-                return
-            end
+            if not PanicSystem or not PanicSystem['Anti Stomp'] then return end
             
             if not Knocked then return end
             
@@ -1315,14 +1177,10 @@ local function SetupJumpFeatures()
     local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
     if not JumpSettings then return end
     
-    if JumpSettings['No Jump Cooldown'] then
-        SetupNoJumpCooldown()
-    end
+    if JumpSettings['No Jump Cooldown'] then SetupNoJumpCooldown() end
     
     local WalljumpCfg = JumpSettings['Walljump']
-    if WalljumpCfg and WalljumpCfg['Enabled'] then
-        SetupWalljump()
-    end
+    if WalljumpCfg and WalljumpCfg['Enabled'] then SetupWalljump() end
 end
 
 SetupJumpFeatures()
@@ -1359,6 +1217,81 @@ local function SetupAvatarHandlers()
 end
 
 SetupAvatarHandlers()
+
+local function SetupInventorySorter()
+    local Config = shared.Scare
+    if not Config then return end
+    
+    local SorterCfg = Config["Inventory Sorter"]
+    if not SorterCfg then return end
+    
+    if not SorterCfg["Enabled"] then return end
+    
+    local keybind = SorterCfg["Keybind"]
+    if not keybind then return end
+    
+    local function SortInventory()
+        RunService.RenderStepped:Wait()
+        local temp = {}
+        
+        if not LocalPlayer.Backpack then
+            return
+        end
+        
+        -- collect all tools from backpack and move to game
+        for i = 1, #LocalPlayer.Backpack:GetChildren() do
+            local tool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
+            if tool then
+                table.insert(temp, tool)
+                tool.Parent = game
+            end
+        end
+        
+        local Slots = SorterCfg["Weapons"]
+        
+        -- place weapons back in order
+        for slotIndex, slotName in pairs(Slots) do
+            for i = 1, #temp do
+                if temp[i] and temp[i].Name == slotName then
+                    temp[i].Parent = LocalPlayer.Backpack
+                    task.wait(0.105)
+                    break
+                end
+            end
+        end
+        
+        -- destroy weapons not in the list
+        for i = 1, #temp do
+            if temp[i] and temp[i].Parent ~= LocalPlayer.Backpack then
+                local found = false
+                for _, slot in pairs(Slots) do
+                    if temp[i].Name == slot then
+                        found = true
+                        break
+                    end
+                end
+                if not found then
+                    pcall(function()
+                        temp[i]:Destroy()
+                    end)
+                    task.wait()
+                end
+            end
+        end
+    end
+    
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if not SorterCfg["Enabled"] then return end
+        
+        if input.KeyCode == Enum.KeyCode[keybind] then
+            task.spawn(SortInventory)
+        end
+    end)
+end
+
+SetupInventorySorter()
 
 local DaHoodPlaceId = {
     [2788229376] = true,
@@ -1408,27 +1341,15 @@ if DaHoodPlaceId[game.PlaceId] then
             end
         end
         
-        if not mesh then
-            return
-        end
+        if not mesh then return end
         
         local batSkins = ReplicatedStorage:FindFirstChild("SkinModules")
-        
-        if not batSkins then
-            return
-        end
-        
+        if not batSkins then return end
         batSkins = batSkins:FindFirstChild("Bats")
-        
-        if not batSkins then
-            return
-        end
+        if not batSkins then return end
         
         local skin = batSkins:FindFirstChild(name)
-        
-        if not skin then
-            return
-        end
+        if not skin then return end
         
         local clone = skin:Clone()
         clone.Parent = tool
@@ -1445,31 +1366,17 @@ if DaHoodPlaceId[game.PlaceId] then
 
     local function applyGun(tool, name)
         local original = tool:FindFirstChildOfClass("MeshPart")
-        
-        if not original then
-            return
-        end
+        if not original then return end
         
         local skinModules = ReplicatedStorage:FindFirstChild("SkinModules")
+        if not skinModules then return end
         
-        if not skinModules then
-            return
-        end
-        
-        local success, skinData = pcall(function()
-            return require(skinModules)
-        end)
-        
-        if not success or not skinData then
-            return
-        end
+        local success, skinData = pcall(function() return require(skinModules) end)
+        if not success or not skinData then return end
         
         local toolName = tool.Name
         local info = skinData[toolName] and skinData[toolName][name]
-        
-        if not info then
-            return
-        end
+        if not info then return end
         
         clearMesh(tool, original)
         
@@ -1494,23 +1401,16 @@ if DaHoodPlaceId[game.PlaceId] then
         end
         
         local handle = tool:FindFirstChild("Handle")
-        
-        if not handle then
-            return
-        end
+        if not handle then return end
         
         local shootSound = handle:FindFirstChild("ShootSound")
-        
         if shootSound then
             local skinAssets = ReplicatedStorage:FindFirstChild("SkinAssets")
-            
             if skinAssets then
                 local gunSounds = skinAssets:FindFirstChild("GunShootSounds")
-                
                 if gunSounds then
                     local sounds = gunSounds:FindFirstChild(toolName)
                     local soundObject = sounds and sounds:FindFirstChild(name)
-                    
                     if soundObject then
                         shootSound.SoundId = soundObject.Value
                     end
@@ -1519,23 +1419,18 @@ if DaHoodPlaceId[game.PlaceId] then
         end
         
         local skinAssets = ReplicatedStorage:FindFirstChild("SkinAssets")
-        
         if skinAssets then
             local particleFolder = skinAssets:FindFirstChild("GunHandleParticle")
-            
             if particleFolder then
                 local particleSource = particleFolder:FindFirstChild(name)
-                
                 if particleSource then
                     local particleEmitter = particleSource:FindFirstChild("ParticleEmitter")
-                    
                     if particleEmitter then
                         for _, existing in ipairs(handle:GetChildren()) do
                             if existing:IsA("ParticleEmitter") then
                                 existing:Destroy()
                             end
                         end
-                        
                         particleEmitter:Clone().Parent = handle
                     end
                 end
@@ -1547,31 +1442,24 @@ if DaHoodPlaceId[game.PlaceId] then
 
     local function cleanKnife(tool)
         local data = knifeData[tool]
-        
         if data then
             if data.track then
                 data.track:Stop()
                 data.track:Destroy()
                 data.track = nil
             end
-            
             if data.welds then
                 for _, weld in ipairs(data.welds) do
-                    if weld then
-                        weld:Destroy()
-                    end
+                    if weld then weld:Destroy() end
                 end
             end
         end
         
         local mesh = tool:FindFirstChild("Default")
-        
         if mesh then
             local children = mesh:GetChildren()
-            
             for i = 1, #children do
                 local v = children[i]
-                
                 if v.Name == "Handle.R" then
                     v:Destroy()
                 elseif v:IsA("Model") then
@@ -1580,7 +1468,6 @@ if DaHoodPlaceId[game.PlaceId] then
                     v:Destroy()
                 end
             end
-            
             mesh.Transparency = 0
         end
         
@@ -1589,48 +1476,28 @@ if DaHoodPlaceId[game.PlaceId] then
 
     local function applyKnife(character, tool, skin)
         local config = KnifeSkins[skin]
-        
-        if not config then
-            return
-        end
+        if not config then return end
         
         local humanoid = character:FindFirstChild("Humanoid")
         local rightHand = character:FindFirstChild("RightHand")
-        
-        if not humanoid or not rightHand then
-            return
-        end
+        if not humanoid or not rightHand then return end
         
         cleanKnife(tool)
         
         knifeData[tool] = {track=nil, welds={}}
-        
         local data = knifeData[tool]
         local mesh = tool:FindFirstChild("Default")
-        
-        if not mesh then
-            return
-        end
+        if not mesh then return end
         
         mesh.Transparency = 1
         
         local skinModules = ReplicatedStorage:FindFirstChild("SkinModules")
-        
-        if not skinModules then
-            return
-        end
-        
+        if not skinModules then return end
         local knives = skinModules:FindFirstChild("Knives")
-        
-        if not knives then
-            return
-        end
+        if not knives then return end
         
         local skinModel = knives:FindFirstChild(skin)
-        
-        if not skinModel then
-            return
-        end
+        if not skinModel then return end
         
         local clone = skinModel:Clone()
         clone.Name = skin
@@ -1659,23 +1526,18 @@ if DaHoodPlaceId[game.PlaceId] then
         if clone:IsA("Model") then
             if not clone.PrimaryPart then
                 local children = clone:GetChildren()
-                
                 for i = 1, #children do
                     local c = children[i]
-                    
                     if c:IsA("BasePart") then
                         clone.PrimaryPart = c
                         break
                     end
                 end
             end
-            
             if clone.PrimaryPart then
                 local descendants = clone:GetDescendants()
-                
                 for i = 1, #descendants do
                     local part = descendants[i]
-                    
                     if part:IsA("BasePart") then
                         part.CanCollide = false
                         part.Massless = true
@@ -1687,14 +1549,11 @@ if DaHoodPlaceId[game.PlaceId] then
                         weld.C0 = offset
                         weld.C1 = part.CFrame:ToObjectSpace(clone.PrimaryPart.CFrame)
                         weld.Parent = part
-                        
                         table.insert(data.welds, weld)
                     end
                 end
             end
-            
             clone.Parent = mesh
-            
         elseif clone:IsA("BasePart") then
             clone.CanCollide = false
             clone.Massless = true
@@ -1706,16 +1565,12 @@ if DaHoodPlaceId[game.PlaceId] then
             
             if config.particle then
                 local skinAssets = ReplicatedStorage:FindFirstChild("SkinAssets")
-                
                 if skinAssets then
                     local particleFolder = skinAssets:FindFirstChild("GunHandleParticle")
-                    
                     if particleFolder then
                         local particleSource = particleFolder:FindFirstChild(skin)
-                        
                         if particleSource then
                             local particleEmitter = particleSource:FindFirstChild("ParticleEmitter")
-                            
                             if particleEmitter then
                                 particleEmitter:Clone().Parent = clone
                             end
@@ -1731,12 +1586,10 @@ if DaHoodPlaceId[game.PlaceId] then
             weld.Part1 = clone
             weld.C0 = offset
             weld.Parent = clone
-            
             table.insert(data.welds, weld)
         end
         
         local animator = humanoid:FindFirstChildOfClass("Animator")
-        
         if not animator then
             animator = Instance.new("Animator")
             animator.Parent = humanoid
@@ -1745,20 +1598,13 @@ if DaHoodPlaceId[game.PlaceId] then
         if config.animationId and config.animationId ~= "" then
             local animation = Instance.new("Animation")
             animation.AnimationId = config.animationId
-            
             local track = animator:LoadAnimation(animation)
             track.Looped = false
             track:Play()
-            
             data.track = track
-            
             animation:Destroy()
-            
             track.Ended:Once(function()
-                if data.track == track then
-                    data.track = nil
-                end
-                
+                if data.track == track then data.track = nil end
                 track:Destroy()
             end)
         end
@@ -1769,9 +1615,7 @@ if DaHoodPlaceId[game.PlaceId] then
                 sound.SoundId = config.soundId
                 sound.Parent = Workspace
                 sound:Play()
-                
                 _currentKnifeSound = sound
-                
                 sound.Ended:Connect(function()
                     sound:Destroy()
                     _currentKnifeSound = nil
@@ -1783,28 +1627,16 @@ if DaHoodPlaceId[game.PlaceId] then
     end
 
     local function setupTool(tool)
-        if not tool:IsA("Tool") then
-            return
-        end
-        
-        if tool:GetAttribute("ScareSkinSetup") then
-            return
-        end
-        
+        if not tool:IsA("Tool") then return end
+        if tool:GetAttribute("ScareSkinSetup") then return end
         tool:SetAttribute("ScareSkinSetup", true)
         
         tool.Equipped:Connect(function()
             local character = tool.Parent
-            
-            if character ~= LocalPlayer.Character then
-                return
-            end
+            if character ~= LocalPlayer.Character then return end
             
             local skin = shared.ScareSkinData[tool.Name]
-            
-            if not skin or skin == "" then
-                return
-            end
+            if not skin or skin == "" then return end
             
             if tool.Name == "[Knife]" then
                 applyKnife(character, tool, skin)
@@ -1818,29 +1650,18 @@ if DaHoodPlaceId[game.PlaceId] then
         tool.Unequipped:Connect(function()
             if tool.Name == "[Knife]" then
                 local data = knifeData[tool]
-                
-                if not data then
-                    return
-                end
-                
+                if not data then return end
                 if data.welds then
                     for _, weld in ipairs(data.welds) do
-                        if weld then
-                            weld:Destroy()
-                        end
+                        if weld then weld:Destroy() end
                     end
-                    
                     data.welds = {}
                 end
-                
                 local mesh = tool:FindFirstChild("Default")
-                
                 if mesh then
                     local children = mesh:GetChildren()
-                    
                     for i = 1, #children do
                         local v = children[i]
-                        
                         if v.Name == "Handle.R" then
                             v:Destroy()
                         elseif v:IsA("Model") then
@@ -1849,7 +1670,6 @@ if DaHoodPlaceId[game.PlaceId] then
                             v:Destroy()
                         end
                     end
-                    
                     mesh.Transparency = 0
                 end
             end
@@ -1857,44 +1677,30 @@ if DaHoodPlaceId[game.PlaceId] then
         
         if tool.Parent == LocalPlayer.Character then
             local skin = shared.ScareSkinData[tool.Name]
-            
             if skin and skin ~= "" then
-                if tool.Name == "[Knife]" then
-                    task.spawn(function()
+                task.spawn(function()
+                    if tool.Name == "[Knife]" then
                         applyKnife(LocalPlayer.Character, tool, skin)
-                    end)
-                elseif tool.Name == "[Bat]" then
-                    task.spawn(function()
+                    elseif tool.Name == "[Bat]" then
                         applyBat(tool, skin)
-                    end)
-                else
-                    task.spawn(function()
+                    else
                         applyGun(tool, skin)
-                    end)
-                end
+                    end
+                end)
             end
         end
     end
 
     local function watchCharacter(character)
-        if not character then
-            return
-        end
-        
+        if not character then return end
         local children = character:GetChildren()
-        
         for i = 1, #children do
             local v = children[i]
-            
-            if v:IsA("Tool") then
-                setupTool(v)
-            end
+            if v:IsA("Tool") then setupTool(v) end
         end
         
         character.ChildAdded:Connect(function(v)
-            if v:IsA("Tool") then
-                setupTool(v)
-            end
+            if v:IsA("Tool") then setupTool(v) end
         end)
     end
 
@@ -1902,17 +1708,12 @@ if DaHoodPlaceId[game.PlaceId] then
     LocalPlayer.CharacterAdded:Connect(watchCharacter)
 
     local backpack = LocalPlayer:WaitForChild("Backpack")
-
     for _, tool in ipairs(backpack:GetChildren()) do
-        if tool:IsA("Tool") then
-            setupTool(tool)
-        end
+        if tool:IsA("Tool") then setupTool(tool) end
     end
 
     backpack.ChildAdded:Connect(function(child)
-        if child:IsA("Tool") then
-            setupTool(child)
-        end
+        if child:IsA("Tool") then setupTool(child) end
     end)
 end
 
@@ -2124,9 +1925,7 @@ local function FullCleanup()
     local function cleanEnvironment(tbl)
         if type(tbl) ~= "table" then return end
         for k, v in pairs(tbl) do
-            if type(v) == "table" then
-                cleanEnvironment(v)
-            end
+            if type(v) == "table" then cleanEnvironment(v) end
             if type(k) == "string" and (k:find("Scare") or k:find("State") or k:find("Target")) then
                 pcall(function() tbl[k] = nil end)
             end
@@ -2215,7 +2014,7 @@ local function FullCleanup()
 end
 
 local function GetKeybind()
-    local Settings = GetConfig()
+    local Settings = shared.Scare
     if not Settings then return nil end
     local keybind = Settings['Keybind']
     if not keybind then return nil end
@@ -2223,7 +2022,7 @@ local function GetKeybind()
 end
 
 local function GetSilentKeybind()
-    local Settings = GetConfig()
+    local Settings = shared.Scare
     if not Settings then return nil end
     local keybind = Settings['Keybind']
     if not keybind then return nil end
@@ -2235,7 +2034,7 @@ local function GetSilentKeybind()
 end
 
 local function GetTriggerKeybind()
-    local Settings = GetConfig()
+    local Settings = shared.Scare
     if not Settings then return nil end
     local keybind = Settings['Keybind']
     if not keybind then return nil end
@@ -2247,7 +2046,7 @@ local function GetTriggerKeybind()
 end
 
 local function GetCameraKeybind()
-    local Settings = GetConfig()
+    local Settings = shared.Scare
     if not Settings then return nil end
     local keybind = Settings['Keybind']
     if not keybind then return nil end
@@ -2258,125 +2057,33 @@ local function GetCameraKeybind()
     return keybind['Global']
 end
 
-local function GetSelectionMode()
-    local Settings = GetConfig()
-    if not Settings then return "Toggle" end
-    local selSpec = Settings['Selection Specific']
-    if not selSpec then return "Toggle" end
-    local silentMode = selSpec['Silent Aimbot']
-    if silentMode ~= nil then
-        return silentMode
-    end
-    return "Toggle"
-end
-
-local function GetTriggerSelectionMode()
-    local Settings = GetConfig()
-    if not Settings then return "Toggle" end
-    local selSpec = Settings['Selection Specific']
-    if not selSpec then return "Toggle" end
-    local triggerMode = selSpec['Trigger Bot']
-    if triggerMode ~= nil then
-        return triggerMode
-    end
-    return "Toggle"
-end
-
-local function GetCameraSelectionMode()
-    local Settings = GetConfig()
-    if not Settings then return "Toggle" end
-    local selSpec = Settings['Selection Specific']
-    if not selSpec then return "Toggle" end
-    local cameraMode = selSpec['Camera Aimbot']
-    if cameraMode ~= nil then
-        return cameraMode
-    end
-    return "Toggle"
-end
-
-local function GetSelectionSystem()
-    local Settings = GetConfig()
-    if not Settings then return "Target" end
-    local selSys = Settings['Selection System']
-    if not selSys then return "Target" end
-    local silentSys = selSys['Silent Aimbot']
-    if silentSys ~= nil then
-        return silentSys
-    end
-    return "Target"
-end
-
-local function GetTriggerSelectionSystem()
-    local Settings = GetConfig()
-    if not Settings then return "Target" end
-    local selSys = Settings['Selection System']
-    if not selSys then return "Target" end
-    local triggerSys = selSys['Trigger Bot']
-    if triggerSys ~= nil then
-        return triggerSys
-    end
-    return "Target"
-end
-
-local function GetCameraSelectionSystem()
-    local Settings = GetConfig()
-    if not Settings then return "Target" end
-    local selSys = Settings['Selection System']
-    if not selSys then return "Target" end
-    local cameraSys = selSys['Camera Aimbot']
-    if cameraSys ~= nil then
-        return cameraSys
-    end
-    return "Target"
-end
-
 local function GetSelectingDistance(mode)
-    local Settings = GetConfig()
+    local Settings = shared.Scare
     if not Settings then return 0 end
-    local dist = Settings['Selecting Distance']
-    if not dist then return 0 end
-    local value = dist[mode]
-    if value == nil then return 0 end
-    if value <= 0 then return 0 end
-    return value
-end
-
-local function GetShootDetectionKeybind()
-    local Settings = GetConfig()
-    local TriggerCfg = Settings and Settings["Trigger Bot"]
-    if not TriggerCfg then return "T" end
-    local SDCfg = TriggerCfg["Shoot Detection"] or {}
-    return SDCfg["Keybind"] or "T"
-end
-
-local function GetWeaponSwitchDelay()
-    local Config = GetConfig()
-    if not Config then return 0 end
-    local TriggerCfg = Config["Trigger Bot"]
-    if not TriggerCfg then return 0 end
-    local WSCfg = TriggerCfg["Weapon Switching Delay"] or {}
-    if not WSCfg["Enabled"] then return 0 end
-    return WSCfg["Delay"] or 2.15
+    local cfg = Settings[mode]
+    if not cfg then return 0 end
+    local dist = cfg["Distance"]
+    if dist == nil then return 0 end
+    if dist <= 0 then return 0 end
+    return dist
 end
 
 local function GetTriggerCooldownForWeapon(weaponName)
-    local Config = GetConfig()
+    local Config = shared.Scare
     if not Config then return 0.001 end
     local TriggerCfg = Config["Trigger Bot"]
     if not TriggerCfg then return 0.001 end
     local CooldownCfg = TriggerCfg["Click Cooldown"] or {}
     
     for Key, Value in pairs(CooldownCfg) do
-        if Key == weaponName then
-            return Value
-        end
+        if Key == weaponName then return Value end
     end
     
     return 0.001
 end
 
 local function IsSilentHitpartClosestPoint()
-    local Settings = GetConfig()
+    local Settings = shared.Scare
     if not Settings then return false end
     local silentCfg = Settings['Silent Aimbot']
     if not silentCfg then return false end
@@ -2401,20 +2108,16 @@ local function basicpoint(part, rayOrigin, rayDirection)
 end
 
 local function getClosestPoint(character, cfgOverride)
-    if not (character and character.Parent) then 
-        return nil
-    end
+    if not (character and character.Parent) then return nil end
     
     local mousePos = UserInputService:GetMouseLocation()
     local mouseX, mouseY = mousePos.X, mousePos.Y
     local cam = Camera
     
     local ray = cam:ViewportPointToRay(mouseX, mouseY)
-    if not ray then
-        return nil
-    end
+    if not ray then return nil end
 
-    local Settings = GetConfig()
+    local Settings = shared.Scare
     local cfg = cfgOverride
     if not cfg then
         local silentCfg = Settings and Settings['Silent Aimbot']
@@ -2422,11 +2125,8 @@ local function getClosestPoint(character, cfgOverride)
             cfg = silentCfg['Point Configuration']
         end
     end
-    if not cfg then
-        return nil
-    end
+    if not cfg then return nil end
 
-    local mode = cfg['Method'] or "Advanced"
     local scale = cfg['Point Scaling'] or 9.0
     local density = math.clamp(math.floor(scale), 2, 12)
 
@@ -2438,9 +2138,7 @@ local function getClosestPoint(character, cfgOverride)
         end
     end
 
-    if #allParts == 0 then
-        return nil
-    end
+    if #allParts == 0 then return nil end
 
     local rayParams = RaycastParams.new()
     rayParams.FilterType = Enum.RaycastFilterType.Whitelist
@@ -2449,124 +2147,77 @@ local function getClosestPoint(character, cfgOverride)
     
     local directHit = Workspace:Raycast(ray.Origin, ray.Direction * 1000, rayParams)
     if directHit then
-        return { 
-            Part = directHit.Instance, 
-            Position = directHit.Position 
-        }
+        return { Part = directHit.Instance, Position = directHit.Position }
     end
 
-    if mode == "Basic" then
-        local bestDist = 1e9
-        local bestResult = nil
-        
-        for _, part in pairs(allParts) do
-            local hitPoint = basicpoint(part, ray.Origin, ray.Direction)
-            if hitPoint then
-                local s = cam:WorldToViewportPoint(hitPoint)
-                if s.Z > 0 then
-                    local dist = (s.X - mouseX) * (s.X - mouseX) + (s.Y - mouseY) * (s.Y - mouseY)
-                    if dist < bestDist then
-                        bestDist = dist
-                        bestResult = { Part = part, Position = hitPoint }
-                    end
-                end
-            end
-        end
-        
-        if bestResult then return bestResult end
-    else
-        local bestDist = 1e9
-        local bestResult = nil
-        
-        local STEP = 1 / (density - 1)
-        local STEP_OFFSETS = {}
-        for j = 0, density - 1 do 
-            STEP_OFFSETS[j + 1] = j * STEP 
-        end
+    local bestDist = 1e9
+    local bestResult = nil
+    local STEP = 1 / (density - 1)
+    local STEP_OFFSETS = {}
+    for j = 0, density - 1 do STEP_OFFSETS[j + 1] = j * STEP end
 
-        for _, part in pairs(allParts) do
-            local size = part.Size
-            local half = size * 0.5
-            local cframe = part.CFrame
+    for _, part in pairs(allParts) do
+        local size = part.Size
+        local half = size * 0.5
+        local cframe = part.CFrame
 
-            for z = 1, density do
-                local clampedZ = -half.Z + STEP_OFFSETS[z] * size.Z
-                
-                for y = 1, density do
-                    local clampedY = -half.Y + STEP_OFFSETS[y] * size.Y
+        for z = 1, density do
+            local clampedZ = -half.Z + STEP_OFFSETS[z] * size.Z
+            for y = 1, density do
+                local clampedY = -half.Y + STEP_OFFSETS[y] * size.Y
+                for x = 1, density do
+                    local clampedX = -half.X + STEP_OFFSETS[x] * size.X
+                    local worldPos = cframe:PointToWorldSpace(Vector3.new(clampedX, clampedY, clampedZ))
                     
-                    for x = 1, density do
-                        local clampedX = -half.X + STEP_OFFSETS[x] * size.X
-                        
-                        local worldPos = cframe:PointToWorldSpace(Vector3.new(clampedX, clampedY, clampedZ))
-                        
-                        local s = cam:WorldToViewportPoint(worldPos)
-                        if s.Z > 0 then
-                            local dist = (s.X - mouseX) * (s.X - mouseX) + (s.Y - mouseY) * (s.Y - mouseY)
-                            if dist < bestDist then
-                                bestDist = dist
-                                bestResult = { Part = part, Position = worldPos }
-                            end
+                    local s = cam:WorldToViewportPoint(worldPos)
+                    if s.Z > 0 then
+                        local dist = (s.X - mouseX) * (s.X - mouseX) + (s.Y - mouseY) * (s.Y - mouseY)
+                        if dist < bestDist then
+                            bestDist = dist
+                            bestResult = { Part = part, Position = worldPos }
                         end
                     end
                 end
             end
         end
-        
-        if bestResult then return bestResult end
     end
+    
+    if bestResult then return bestResult end
 
     local root = character:FindFirstChild("HumanoidRootPart")
-    if root then
-        return { Part = root, Position = root.Position }
-    end
+    if root then return { Part = root, Position = root.Position } end
     
     return nil
 end
 
 local function SetupMovementModifications()
-    local uis = game:GetService("UserInputService")
-    local RunService = game:GetService("RunService")
+    local uis = UserInputService
     local isSpeedEnabled = false
     local defaultSpeed = 16
     local speedConnection = nil
     
     local function getCurrentMultiplier()
         local MovementSettings = shared.Scare and shared.Scare['Movement Modifications']
-        if not MovementSettings then
-            return 1
-        end
+        if not MovementSettings then return 1 end
         
-        local MovementCfg = MovementSettings['Configuration']
-        if not MovementCfg then
-            return 1
-        end
+        local MovementCfg = MovementSettings['Core']
+        if not MovementCfg then return 1 end
         
         local Character = LocalPlayer.Character
-        if not Character then
-            return 1
-        end
+        if not Character then return 1 end
         
         local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-        if not Humanoid then
-            return 1
-        end
+        if not Humanoid then return 1 end
         
         local CurrentState = "Normal"
-        local Tool = Character:FindFirstChildOfClass("Tool")
         
-        if Tool then
-            local ToolName = Tool.Name or ""
-            if ToolName:lower():find("knife") or ToolName:lower():find("dagger") or ToolName:lower():find("blade") or ToolName:lower():find("sword") then
-                CurrentState = "Knife"
-            elseif ToolName:find("[Revolver]") then
-                CurrentState = "[Revolver]"
-            end
-        end
-        
+        -- only switch to low health if health is below 30%
         if Humanoid.Health / Humanoid.MaxHealth < 0.3 then
             CurrentState = "Low Health"
         end
+        
+        -- removed weapon-specific detection – always use "Normal" for any tool
+        -- your Core table only has Normal, Shooting, Reloading, and Low Health keys
         
         local Multiplier = 1
         local StateConfig = MovementCfg[CurrentState]
@@ -2579,19 +2230,13 @@ local function SetupMovementModifications()
     
     local function updateSpeed()
         local Character = LocalPlayer.Character
-        if not Character then
-            return
-        end
+        if not Character then return end
         
         local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-        if not Humanoid then
-            return
-        end
+        if not Humanoid then return end
         
         local MovementSettings = shared.Scare and shared.Scare['Movement Modifications']
-        if not MovementSettings then
-            return
-        end
+        if not MovementSettings then return end
         
         if not isSpeedEnabled or not MovementSettings['Enabled'] then
             if Humanoid.WalkSpeed ~= defaultSpeed then
@@ -2600,45 +2245,24 @@ local function SetupMovementModifications()
             return
         end
         
-        local Method = MovementSettings['Method'] or "Speedwalk"
         local Multiplier = getCurrentMultiplier()
-        
-        if Method == "Speedwalk" then
-            local NewSpeed = 16 * Multiplier
-            NewSpeed = math.clamp(NewSpeed, 0, 1000)
-            if Humanoid.WalkSpeed ~= NewSpeed then
-                Humanoid.WalkSpeed = NewSpeed
-            end
-        elseif Method == "Velocity" then
-            local RootPart = Character:FindFirstChild("HumanoidRootPart")
-            if RootPart then
-                local CurrentVel = RootPart.AssemblyLinearVelocity
-                local VelMultiplier = Multiplier
-                local NewVel = Vector3.new(CurrentVel.X * VelMultiplier, CurrentVel.Y, CurrentVel.Z * VelMultiplier)
-                NewVel = Vector3.new(math.clamp(NewVel.X, -500, 500), NewVel.Y, math.clamp(NewVel.Z, -500, 500))
-                RootPart.AssemblyLinearVelocity = NewVel
-            end
+        local NewSpeed = 16 * Multiplier
+        NewSpeed = math.clamp(NewSpeed, 0, 1000)
+        if Humanoid.WalkSpeed ~= NewSpeed then
+            Humanoid.WalkSpeed = NewSpeed
         end
     end
     
     uis.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then
-            return
-        end
+        if gameProcessed then return end
         
         local MovementSettings = shared.Scare and shared.Scare['Movement Modifications']
-        if not MovementSettings then
-            return
-        end
+        if not MovementSettings then return end
         
-        if not MovementSettings['Enabled'] then
-            return
-        end
+        if not MovementSettings['Enabled'] then return end
         
         local keybind = MovementSettings['Keybind']
-        if not keybind then
-            return
-        end
+        if not keybind then return end
         
         local keyCode = Enum.KeyCode[keybind]
         if input.KeyCode == keyCode then
@@ -2669,16 +2293,12 @@ local function SetupMovementModifications()
         local Humanoid = character:WaitForChild("Humanoid")
         defaultSpeed = Humanoid.WalkSpeed
         task.wait(0.1)
-        if isSpeedEnabled then
-            updateSpeed()
-        end
+        if isSpeedEnabled then updateSpeed() end
     end)
     
     if LocalPlayer.Character then
         local Humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if Humanoid then
-            defaultSpeed = Humanoid.WalkSpeed
-        end
+        if Humanoid then defaultSpeed = Humanoid.WalkSpeed end
     end
 end
 
@@ -2769,44 +2389,42 @@ end
 
 local function ValidateTarget(mode)
     if mode == "Silent" then
-        local locked = State.SilentTargetLocked
-        if not locked then return end
+        if not State.SilentTargetLocked then return end
         
         local Target = State.Targets.Silent
         
         if Target then
-            if not CheckConditionsExceptVisible(Target, mode) then
+            if not CheckChecksNoVisible(Target, mode) then
                 State.Targets.Silent = nil
                 State.SilentTargetLocked = false
                 state.lastValidTarget = nil
                 return
             end
-            if not CheckConditions(Target, false, mode) then
+            if CheckChecks(Target, mode) then
+                state.lastValidTarget = nil
+                return
+            else
                 state.lastValidTarget = Target
+                State.Targets.Silent = nil
                 return
             end
-            state.lastValidTarget = nil
         end
         
-        if State.SilentTargetLocked and not State.Targets.Silent then
-            if state.lastValidTarget then
-                if not CheckConditionsExceptVisible(state.lastValidTarget, mode) then
-                    State.SilentTargetLocked = false
-                    state.lastValidTarget = nil
-                else
-                    State.Targets.Silent = state.lastValidTarget
-                    state.lastValidTarget = nil
-                end
+        if state.lastValidTarget then
+            if CheckChecksNoVisible(state.lastValidTarget, mode) and CheckChecks(state.lastValidTarget, mode) then
+                State.Targets.Silent = state.lastValidTarget
+                state.lastValidTarget = nil
+            elseif not CheckChecksNoVisible(state.lastValidTarget, mode) then
+                state.lastValidTarget = nil
             end
         end
     elseif mode == "Trigger" then
-        local locked = State.TriggerTargetLocked
-        if not locked then return end
+        if not State.TriggerTargetLocked then return end
         
         local Target = State.Targets.Trigger
         
         if Target then
-            if not CheckConditionsExceptVisible(Target, mode) then
+            if not CheckChecksNoVisible(Target, mode) then
                 State.Targets.Trigger = nil
                 State.TriggerTargetLocked = false
                 state.triggerLastValidTarget = nil
@@ -2815,36 +2433,35 @@ local function ValidateTarget(mode)
                 Trigger3DFOVPart.Transparency = 1
                 return
             end
-            if not CheckConditions(Target, false, mode) then
+            if CheckChecks(Target, mode) then
+                state.triggerLastValidTarget = nil
+                return
+            else
                 state.triggerLastValidTarget = Target
+                State.Targets.Trigger = nil
                 return
             end
-            state.triggerLastValidTarget = nil
         end
         
-        if State.TriggerTargetLocked and not State.Targets.Trigger then
-            if state.triggerLastValidTarget then
-                if not CheckConditionsExceptVisible(state.triggerLastValidTarget, mode) then
-                    State.TriggerTargetLocked = false
-                    state.triggerLastValidTarget = nil
-                    state.triggerFOVActive = false
-                    TriggerFOVBox.Visible = false
-                    Trigger3DFOVPart.Transparency = 1
-                else
-                    State.Targets.Trigger = state.triggerLastValidTarget
-                    state.triggerLastValidTarget = nil
-                    state.triggerFOVActive = true
-                end
+        if state.triggerLastValidTarget then
+            if CheckChecksNoVisible(state.triggerLastValidTarget, mode) and CheckChecks(state.triggerLastValidTarget, mode) then
+                State.Targets.Trigger = state.triggerLastValidTarget
+                state.triggerLastValidTarget = nil
+                state.triggerFOVActive = true
+            elseif not CheckChecksNoVisible(state.triggerLastValidTarget, mode) then
+                state.triggerLastValidTarget = nil
+                state.triggerFOVActive = false
+                TriggerFOVBox.Visible = false
+                Trigger3DFOVPart.Transparency = 1
             end
         end
     elseif mode == "Camera" then
-        local locked = State.CameraTargetLocked
-        if not locked then return end
+        if not State.CameraTargetLocked then return end
         
         local Target = State.Targets.Camera
         
         if Target then
-            if not CheckConditionsExceptVisible(Target, mode) then
+            if not CheckChecksNoVisible(Target, mode) then
                 State.Targets.Camera = nil
                 State.CameraTargetLocked = false
                 state.cameraLastValidTarget = nil
@@ -2856,29 +2473,29 @@ local function ValidateTarget(mode)
                 Camera3DFOVPart.Transparency = 1
                 return
             end
-            if not CheckConditions(Target, false, mode) then
+            if CheckChecks(Target, mode) then
+                state.cameraLastValidTarget = nil
+                return
+            else
                 state.cameraLastValidTarget = Target
+                State.Targets.Camera = nil
                 return
             end
-            state.cameraLastValidTarget = nil
         end
         
-        if State.CameraTargetLocked and not State.Targets.Camera then
-            if state.cameraLastValidTarget then
-                if not CheckConditionsExceptVisible(state.cameraLastValidTarget, mode) then
-                    State.CameraTargetLocked = false
-                    state.cameraLastValidTarget = nil
-                    state.cameraFOVActive = false
-                    state.cameraEasingProgress = 0
-                    state.cameraLastTarget = nil
-                    state.cameraShakeTime = 0
-                    CameraFOVBox.Visible = false
-                    Camera3DFOVPart.Transparency = 1
-                else
-                    State.Targets.Camera = state.cameraLastValidTarget
-                    state.cameraLastValidTarget = nil
-                    state.cameraFOVActive = true
-                end
+        if state.cameraLastValidTarget then
+            if CheckChecksNoVisible(state.cameraLastValidTarget, mode) and CheckChecks(state.cameraLastValidTarget, mode) then
+                State.Targets.Camera = state.cameraLastValidTarget
+                state.cameraLastValidTarget = nil
+                state.cameraFOVActive = true
+            elseif not CheckChecksNoVisible(state.cameraLastValidTarget, mode) then
+                state.cameraLastValidTarget = nil
+                state.cameraFOVActive = false
+                state.cameraEasingProgress = 0
+                state.cameraLastTarget = nil
+                state.cameraShakeTime = 0
+                CameraFOVBox.Visible = false
+                Camera3DFOVPart.Transparency = 1
             end
         end
     end
@@ -2902,29 +2519,23 @@ end
 
 if GunHandler and OriginalGetAim then
     GunHandler.getAim = function(origin, range)
-        local Config = GetConfig()
+        local Config = shared.Scare
         local SilentCfg = Config and Config["Silent Aimbot"]
         if not SilentCfg or not SilentCfg["Enabled"] then
-            if OriginalGetAim then
-                return OriginalGetAim(origin, range)
-            end
+            if OriginalGetAim then return OriginalGetAim(origin, range) end
             return
         end
         
         if not State.SilentTargetLocked then
-            if OriginalGetAim then
-                return OriginalGetAim(origin, range)
-            end
+            if OriginalGetAim then return OriginalGetAim(origin, range) end
             return
         end
         
-        ValidateTarget("Silent")
+        ValidateTarget("Silent Aimbot")
         
         local Target = State.Targets.Silent
         if not Target then
-            if OriginalGetAim then
-                return OriginalGetAim(origin, range)
-            end
+            if OriginalGetAim then return OriginalGetAim(origin, range) end
             return
         end
         
@@ -2949,9 +2560,7 @@ if GunHandler and OriginalGetAim then
                 if Root then
                     TargetPos = Root.Position
                 else
-                    if OriginalGetAim then
-                        return OriginalGetAim(origin, range)
-                    end
+                    if OriginalGetAim then return OriginalGetAim(origin, range) end
                     return
                 end
             end
@@ -2973,16 +2582,12 @@ if GunHandler and OriginalGetAim then
         local MaxRange = GetSelectingDistance("Silent Aimbot")
         
         if MaxRange <= 0 then
-            if OriginalGetAim then
-                return OriginalGetAim(origin, range)
-            end
+            if OriginalGetAim then return OriginalGetAim(origin, range) end
             return
         end
         
         if Distance > MaxRange then
-            if OriginalGetAim then
-                return OriginalGetAim(origin, range)
-            end
+            if OriginalGetAim then return OriginalGetAim(origin, range) end
             return
         end
         
@@ -3012,9 +2617,7 @@ if GunHandler and OriginalGetAim then
         end
         
         if not inFOV then
-            if OriginalGetAim then
-                return OriginalGetAim(origin, range)
-            end
+            if OriginalGetAim then return OriginalGetAim(origin, range) end
             return
         end
         
@@ -3026,7 +2629,7 @@ end
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    local Settings = GetConfig()
+    local Settings = shared.Scare
     if not Settings then return end
     
     local VisualsCfg = Settings['Visuals']
@@ -3059,9 +2662,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         end
     end
     
-    local safety = Settings['Safety System']
-    if not safety then return end
-    local uninject = safety['Uninject']
+    local uninject = Settings['Uninject']
     if not uninject then return end
     local uninjectEnabled = uninject['Enabled']
     local uninjectKey = uninject['Keybind']
@@ -3069,24 +2670,18 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if uninjectEnabled and uninjectKey and uninjectKey ~= '' then
         local keyCode = Enum.KeyCode[uninjectKey]
         if keyCode and input.KeyCode == keyCode then
-            local stealthState = IsStealthEnabled()
-            
             if not state.uninjectSent and requestFunc then
                 state.uninjectSent = true
                 FullCleanup()
             end
-            
             FullCleanup()
-            
             return
         end
     end
 end)
 
 local function GetClosestPlayerToCursor(MaxRange, mode)
-    if MaxRange <= 0 then
-        return nil
-    end
+    if MaxRange <= 0 then return nil end
     
     local MousePos = UserInputService:GetMouseLocation()
     local CamPos = Camera.CFrame.Position
@@ -3279,39 +2874,10 @@ for i = 1, 12 do
     PanelLabels[i] = L
 end
 
-local function GetWeaponCheckEnabled(mode)
-    if mode == "Camera Aimbot" then
-        return true
-    end
-    
-    local Config = GetConfig()
-    if not Config then return true end
-    local WeaponCfg = Config["Weapon Checks"] or {}
-    local Weapons = WeaponCfg[mode] or {}
-    if not Weapons or #Weapons == 0 then
-        return true
-    end
-    
-    local Character = LocalPlayer.Character
-    if not Character then return false end
-    local Tool = Character:FindFirstChildOfClass("Tool")
-    if not Tool then return true end
-    local WeaponName = Tool.Name
-    
-    for _, Weapon in pairs(Weapons) do
-        if Weapon == WeaponName then
-            return true
-        end
-    end
-    return false
-end
-
 local function IsInFOV(Player, mode)
-    if not Player or not Player.Character then
-        return false
-    end
+    if not Player or not Player.Character then return false end
     
-    local Settings = GetConfig()
+    local Settings = shared.Scare
     local Cfg = Settings and Settings[mode]
     if not Cfg then return true end
     
@@ -3323,14 +2889,10 @@ local function IsInFOV(Player, mode)
     end
     
     local Root = TargetChar:FindFirstChild("HumanoidRootPart")
-    if not Root then
-        return false
-    end
+    if not Root then return false end
     
     local screenPos, onScreen = Camera:WorldToViewportPoint(Root.Position)
-    if not onScreen or screenPos.Z <= 0 then
-        return false
-    end
+    if not onScreen or screenPos.Z <= 0 then return false end
     
     if fovMethod == "2D" then
         local mousePos = UserInputService:GetMouseLocation()
@@ -3351,7 +2913,7 @@ local function IsInFOV(Player, mode)
 end
 
 local function IsSeparateKeybindsEnabled()
-    local Config = GetConfig()
+    local Config = shared.Scare
     if not Config then return false end
     local keybind = Config['Keybind']
     if not keybind then return false end
@@ -3362,17 +2924,13 @@ end
 local function HandleSharedKey(input, processed)
     if processed then return end
     
-    if IsSeparateKeybindsEnabled() then
-        return
-    end
+    if IsSeparateKeybindsEnabled() then return end
     
-    local Config = GetConfig()
+    local Config = shared.Scare
     if not Config then return end
     
     local key = GetKeybind()
-    if not key then
-        return
-    end
+    if not key then return end
     
     local match = false
     pcall(function()
@@ -3388,25 +2946,23 @@ local function HandleSharedKey(input, processed)
         end)
     end
     
-    if not match then
-        return
-    end
+    if not match then return end
     
     local SilentEnabled = Config["Silent Aimbot"] and Config["Silent Aimbot"]["Enabled"]
     local TriggerEnabled = Config["Trigger Bot"] and Config["Trigger Bot"]["Enabled"]
     local CameraEnabled = Config["Camera Aimbot"] and Config["Camera Aimbot"]["Enabled"]
     
     local activeModes = {}
-    if SilentEnabled then table.insert(activeModes, "Silent") end
-    if TriggerEnabled then table.insert(activeModes, "Trigger") end
-    if CameraEnabled then table.insert(activeModes, "Camera") end
+    if SilentEnabled then table.insert(activeModes, "Silent Aimbot") end
+    if TriggerEnabled then table.insert(activeModes, "Trigger Bot") end
+    if CameraEnabled then table.insert(activeModes, "Camera Aimbot") end
     
     if #activeModes == 0 then return end
     
     if #activeModes == 1 then
         local mode = activeModes[1]
-        if mode == "Silent" then
-            local SelMode = GetSelectionMode()
+        if mode == "Silent Aimbot" then
+            local SelMode = Config["Silent Aimbot"]["Selection"] or "Toggle"
             local MaxR = GetSelectingDistance("Silent Aimbot")
             if SelMode == "Toggle" then
                 State.SilentTargetLocked = not State.SilentTargetLocked
@@ -3422,8 +2978,8 @@ local function HandleSharedKey(input, processed)
                 State.Targets.Silent = GetClosestPlayerToCursor(MaxR, "Silent Aimbot")
                 state.lastValidTarget = nil
             end
-        elseif mode == "Trigger" then
-            local SelMode = GetTriggerSelectionMode()
+        elseif mode == "Trigger Bot" then
+            local SelMode = Config["Trigger Bot"]["Selection"] or "Toggle"
             local MaxR = GetSelectingDistance("Trigger Bot")
             if SelMode == "Toggle" then
                 State.TriggerTargetLocked = not State.TriggerTargetLocked
@@ -3444,8 +3000,8 @@ local function HandleSharedKey(input, processed)
                 state.triggerLastValidTarget = nil
                 state.triggerFOVActive = true
             end
-        elseif mode == "Camera" then
-            local SelMode = GetCameraSelectionMode()
+        elseif mode == "Camera Aimbot" then
+            local SelMode = Config["Camera Aimbot"]["Selection"] or "Toggle"
             local MaxR = GetSelectingDistance("Camera Aimbot")
             if SelMode == "Toggle" then
                 State.CameraTargetLocked = not State.CameraTargetLocked
@@ -3476,72 +3032,71 @@ local function HandleSharedKey(input, processed)
         return
     end
     
-    if #activeModes >= 2 then
-        local allLocked = State.SilentTargetLocked or State.TriggerTargetLocked or State.CameraTargetLocked
-        
-        if allLocked then
-            State.SilentTargetLocked = false
-            State.TriggerTargetLocked = false
-            State.CameraTargetLocked = false
-            State.Targets.Silent = nil
-            State.Targets.Trigger = nil
-            State.Targets.Camera = nil
-            state.lastValidTarget = nil
-            state.triggerLastValidTarget = nil
-            state.cameraLastValidTarget = nil
-            state.triggerFOVActive = false
-            state.cameraFOVActive = false
-            state.cameraEasingProgress = 0
-            state.cameraLastTarget = nil
-            TriggerFOVBox.Visible = false
-            Trigger3DFOVPart.Transparency = 1
-            CameraFOVBox.Visible = false
-            Camera3DFOVPart.Transparency = 1
-            state.sharedTargetLocked = false
-            state.sharedTarget = nil
-            state.silentOnly = false
-            state.triggerOnly = false
-            state.cameraOnly = false
-        else
-            if not state.silentOnly and not state.triggerOnly and not state.cameraOnly then
-                if SilentEnabled then state.silentOnly = true end
-                if TriggerEnabled then state.triggerOnly = true end
-                if CameraEnabled then state.cameraOnly = true end
-                
-                if SilentEnabled then
-                    local MaxR = GetSelectingDistance("Silent Aimbot")
-                    local Target = GetClosestPlayerToCursor(MaxR, "Silent Aimbot")
-                    if Target then
-                        State.SilentTargetLocked = true
-                        State.Targets.Silent = Target
-                        state.lastValidTarget = nil
-                        state.sharedTargetLocked = true
-                        state.sharedTarget = Target
-                    end
+    -- multiple modes active
+    local allLocked = State.SilentTargetLocked or State.TriggerTargetLocked or State.CameraTargetLocked
+    
+    if allLocked then
+        State.SilentTargetLocked = false
+        State.TriggerTargetLocked = false
+        State.CameraTargetLocked = false
+        State.Targets.Silent = nil
+        State.Targets.Trigger = nil
+        State.Targets.Camera = nil
+        state.lastValidTarget = nil
+        state.triggerLastValidTarget = nil
+        state.cameraLastValidTarget = nil
+        state.triggerFOVActive = false
+        state.cameraFOVActive = false
+        state.cameraEasingProgress = 0
+        state.cameraLastTarget = nil
+        TriggerFOVBox.Visible = false
+        Trigger3DFOVPart.Transparency = 1
+        CameraFOVBox.Visible = false
+        Camera3DFOVPart.Transparency = 1
+        state.sharedTargetLocked = false
+        state.sharedTarget = nil
+        state.silentOnly = false
+        state.triggerOnly = false
+        state.cameraOnly = false
+    else
+        if not state.silentOnly and not state.triggerOnly and not state.cameraOnly then
+            if SilentEnabled then state.silentOnly = true end
+            if TriggerEnabled then state.triggerOnly = true end
+            if CameraEnabled then state.cameraOnly = true end
+            
+            if SilentEnabled then
+                local MaxR = GetSelectingDistance("Silent Aimbot")
+                local Target = GetClosestPlayerToCursor(MaxR, "Silent Aimbot")
+                if Target then
+                    State.SilentTargetLocked = true
+                    State.Targets.Silent = Target
+                    state.lastValidTarget = nil
+                    state.sharedTargetLocked = true
+                    state.sharedTarget = Target
                 end
-                
-                if TriggerEnabled then
-                    local MaxR = GetSelectingDistance("Trigger Bot")
-                    local Target = state.sharedTarget or GetClosestPlayerToCursor(MaxR, "Trigger Bot")
-                    if Target then
-                        State.TriggerTargetLocked = true
-                        State.Targets.Trigger = Target
-                        state.triggerLastValidTarget = nil
-                        state.triggerFOVActive = true
-                    end
+            end
+            
+            if TriggerEnabled then
+                local MaxR = GetSelectingDistance("Trigger Bot")
+                local Target = state.sharedTarget or GetClosestPlayerToCursor(MaxR, "Trigger Bot")
+                if Target then
+                    State.TriggerTargetLocked = true
+                    State.Targets.Trigger = Target
+                    state.triggerLastValidTarget = nil
+                    state.triggerFOVActive = true
                 end
-                
-                if CameraEnabled then
-                    local MaxR = GetSelectingDistance("Camera Aimbot")
-                    local Target = state.sharedTarget or GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
-                    if Target then
-                        State.CameraTargetLocked = true
-                        State.Targets.Camera = Target
-                        state.cameraLastValidTarget = nil
-                        state.cameraFOVActive = true
-                        state.cameraEasingProgress = 0
-                        state.cameraLastTarget = nil
-                    end
+            end
+            
+            if CameraEnabled then
+                local MaxR = GetSelectingDistance("Camera Aimbot")
+                local Target = state.sharedTarget or GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
+                if Target then
+                    State.CameraTargetLocked = true
+                    State.Targets.Camera = Target
+                    state.cameraLastValidTarget = nil
+                    state.cameraFOVActive = true
+                    state.cameraEasingProgress = 0
+                    state.cameraLastTarget = nil
                 end
             end
         end
@@ -3551,23 +3106,16 @@ end
 local function HandleTriggerKey(input, processed)
     if processed then return end
     
-    if not IsSeparateKeybindsEnabled() then
-        return
-    end
+    if not IsSeparateKeybindsEnabled() then return end
     
-    local Config = GetConfig()
+    local Config = shared.Scare
     local TriggerCfg = Config and Config["Trigger Bot"]
-    if not TriggerCfg or not TriggerCfg["Enabled"] then
-        return
-    end
+    if not TriggerCfg or not TriggerCfg["Enabled"] then return end
     
-    local SelMode = GetTriggerSelectionMode()
     local MaxR = GetSelectingDistance("Trigger Bot")
     local key = GetTriggerKeybind()
     
-    if not key then
-        return
-    end
+    if not key then return end
     
     local match = false
     pcall(function()
@@ -3583,9 +3131,9 @@ local function HandleTriggerKey(input, processed)
         end)
     end
     
-    if not match then
-        return
-    end
+    if not match then return end
+    
+    local SelMode = TriggerCfg["Selection"] or "Toggle"
     
     if SelMode == "Toggle" then
         State.TriggerTargetLocked = not State.TriggerTargetLocked
@@ -3611,23 +3159,16 @@ end
 local function HandleSilentKey(input, processed)
     if processed then return end
     
-    if not IsSeparateKeybindsEnabled() then
-        return
-    end
+    if not IsSeparateKeybindsEnabled() then return end
     
-    local Config = GetConfig()
+    local Config = shared.Scare
     local SilentCfg = Config and Config["Silent Aimbot"]
-    if not SilentCfg or not SilentCfg["Enabled"] then
-        return
-    end
+    if not SilentCfg or not SilentCfg["Enabled"] then return end
     
-    local SelMode = GetSelectionMode()
     local MaxR = GetSelectingDistance("Silent Aimbot")
     local Key = GetSilentKeybind()
     
-    if not Key then
-        return
-    end
+    if not Key then return end
     
     local Match = false
     pcall(function()
@@ -3643,9 +3184,9 @@ local function HandleSilentKey(input, processed)
         end)
     end
     
-    if not Match then
-        return
-    end
+    if not Match then return end
+    
+    local SelMode = SilentCfg["Selection"] or "Toggle"
     
     if SelMode == "Toggle" then
         State.SilentTargetLocked = not State.SilentTargetLocked
@@ -3666,23 +3207,16 @@ end
 local function HandleCameraKey(input, processed)
     if processed then return end
     
-    if not IsSeparateKeybindsEnabled() then
-        return
-    end
+    if not IsSeparateKeybindsEnabled() then return end
     
-    local Config = GetConfig()
+    local Config = shared.Scare
     local CameraCfg = Config and Config["Camera Aimbot"]
-    if not CameraCfg or not CameraCfg["Enabled"] then
-        return
-    end
+    if not CameraCfg or not CameraCfg["Enabled"] then return end
     
-    local SelMode = GetCameraSelectionMode()
     local MaxR = GetSelectingDistance("Camera Aimbot")
     local Key = GetCameraKeybind()
     
-    if not Key then
-        return
-    end
+    if not Key then return end
     
     local Match = false
     pcall(function()
@@ -3698,9 +3232,9 @@ local function HandleCameraKey(input, processed)
         end)
     end
     
-    if not Match then
-        return
-    end
+    if not Match then return end
+    
+    local SelMode = CameraCfg["Selection"] or "Toggle"
     
     if SelMode == "Toggle" then
         State.CameraTargetLocked = not State.CameraTargetLocked
@@ -3726,145 +3260,6 @@ local function HandleCameraKey(input, processed)
         state.cameraFOVActive = true
         state.cameraEasingProgress = 0
         state.cameraLastTarget = nil
-    elseif SelMode == "Always" then
-        local Target = GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
-        if Target then
-            State.CameraTargetLocked = true
-            State.Targets.Camera = Target
-            state.cameraLastValidTarget = nil
-            state.cameraFOVActive = true
-            state.cameraEasingProgress = 0
-            state.cameraLastTarget = nil
-        end
-    end
-end
-
-local function HandleTriggerKeyRelease(input)
-    local SelMode = GetTriggerSelectionMode()
-    if SelMode ~= "Hold" then
-        return
-    end
-    
-    if not IsSeparateKeybindsEnabled() then
-        return
-    end
-    
-    local key = GetTriggerKeybind()
-    if not key then
-        return
-    end
-    
-    local match = false
-    pcall(function()
-        if input.KeyCode == Enum.KeyCode[key:upper()] then
-            match = true
-        end
-    end)
-    if not match then
-        pcall(function()
-            if input.UserInputType == Enum.UserInputType[key] then
-                match = true
-            end
-        end)
-    end
-    
-    if not match then
-        return
-    end
-    
-    State.TriggerTargetLocked = false
-    State.Targets.Trigger = nil
-    state.triggerLastValidTarget = nil
-    state.triggerFOVActive = false
-    TriggerFOVBox.Visible = false
-    Trigger3DFOVPart.Transparency = 1
-end
-
-local function HandleCameraKeyRelease(input)
-    local SelMode = GetCameraSelectionMode()
-    if SelMode ~= "Hold" then
-        return
-    end
-    
-    if not IsSeparateKeybindsEnabled() then
-        return
-    end
-    
-    local key = GetCameraKeybind()
-    if not key then
-        return
-    end
-    
-    local match = false
-    pcall(function()
-        if input.KeyCode == Enum.KeyCode[key:upper()] then
-            match = true
-        end
-    end)
-    if not match then
-        pcall(function()
-            if input.UserInputType == Enum.UserInputType[key] then
-                match = true
-            end
-        end)
-    end
-    
-    if not match then
-        return
-    end
-    
-    State.CameraTargetLocked = false
-    State.Targets.Camera = nil
-    state.cameraLastValidTarget = nil
-    state.cameraFOVActive = false
-    state.cameraEasingProgress = 0
-    state.cameraLastTarget = nil
-    CameraFOVBox.Visible = false
-    Camera3DFOVPart.Transparency = 1
-end
-
-local function HandleShootDetectionKey(input, processed)
-    if processed then return end
-    
-    local Config = GetConfig()
-    local TriggerCfg = Config and Config["Trigger Bot"]
-    if not TriggerCfg or not TriggerCfg["Enabled"] then
-        return
-    end
-    
-    local key = GetShootDetectionKeybind()
-    if not key then
-        return
-    end
-    
-    local match = false
-    pcall(function()
-        if input.KeyCode == Enum.KeyCode[key:upper()] then
-            match = true
-        end
-    end)
-    if not match then
-        pcall(function()
-            if input.UserInputType == Enum.UserInputType[key] then
-                match = true
-            end
-        end)
-    end
-    
-    if not match then
-        return
-    end
-    
-    state.shootDetectionEnabled = not state.shootDetectionEnabled
-    if not state.shootDetectionEnabled then
-        state.lockedTarget = nil
-        state.hostDetected = false
-        State.TriggerTargetLocked = false
-        State.Targets.Trigger = nil
-        state.triggerLastValidTarget = nil
-        state.triggerFOVActive = false
-        TriggerFOVBox.Visible = false
-        Trigger3DFOVPart.Transparency = 1
     end
 end
 
@@ -3875,7 +3270,6 @@ UserInputService.InputBegan:Connect(function(input, processed)
     HandleSilentKey(input, processed)
     HandleTriggerKey(input, processed)
     HandleCameraKey(input, processed)
-    HandleShootDetectionKey(input, processed)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
@@ -3896,30 +3290,34 @@ UserInputService.InputEnded:Connect(function(input)
                 end)
             end
             if Match then
-                local SelMode = GetSelectionMode()
-                if SelMode == "Hold" then
-                    State.SilentTargetLocked = false
-                    State.Targets.Silent = nil
-                    state.lastValidTarget = nil
-                end                local TriggerSelMode = GetTriggerSelectionMode()
-                if TriggerSelMode == "Hold" then
-                    State.TriggerTargetLocked = false
-                    State.Targets.Trigger = nil
-                    state.triggerLastValidTarget = nil
-                    state.triggerFOVActive = false
-                    TriggerFOVBox.Visible = false
-                    Trigger3DFOVPart.Transparency = 1
-                end
-                local CameraSelMode = GetCameraSelectionMode()
-                if CameraSelMode == "Hold" then
-                    State.CameraTargetLocked = false
-                    State.Targets.Camera = nil
-                    state.cameraLastValidTarget = nil
-                    state.cameraFOVActive = false
-                    state.cameraEasingProgress = 0
-                    state.cameraLastTarget = nil
-                    CameraFOVBox.Visible = false
-                    Camera3DFOVPart.Transparency = 1
+                local Config = shared.Scare
+                if Config then
+                    local SilentCfg = Config["Silent Aimbot"]
+                    if SilentCfg and SilentCfg["Selection"] == "Hold" then
+                        State.SilentTargetLocked = false
+                        State.Targets.Silent = nil
+                        state.lastValidTarget = nil
+                    end
+                    local TriggerCfg = Config["Trigger Bot"]
+                    if TriggerCfg and TriggerCfg["Selection"] == "Hold" then
+                        State.TriggerTargetLocked = false
+                        State.Targets.Trigger = nil
+                        state.triggerLastValidTarget = nil
+                        state.triggerFOVActive = false
+                        TriggerFOVBox.Visible = false
+                        Trigger3DFOVPart.Transparency = 1
+                    end
+                    local CameraCfg = Config["Camera Aimbot"]
+                    if CameraCfg and CameraCfg["Selection"] == "Hold" then
+                        State.CameraTargetLocked = false
+                        State.Targets.Camera = nil
+                        state.cameraLastValidTarget = nil
+                        state.cameraFOVActive = false
+                        state.cameraEasingProgress = 0
+                        state.cameraLastTarget = nil
+                        CameraFOVBox.Visible = false
+                        Camera3DFOVPart.Transparency = 1
+                    end
                 end
                 state.sharedTargetLocked = false
                 state.sharedTarget = nil
@@ -3928,14 +3326,95 @@ UserInputService.InputEnded:Connect(function(input)
                 state.cameraOnly = false
             end
         end
+    else
+        local Config = shared.Scare
+        if Config then
+            local SilentCfg = Config["Silent Aimbot"]
+            if SilentCfg and SilentCfg["Enabled"] and SilentCfg["Selection"] == "Hold" then
+                local Key = GetSilentKeybind()
+                if Key then
+                    local Match = false
+                    pcall(function()
+                        if input.KeyCode == Enum.KeyCode[Key:upper()] then
+                            Match = true
+                        end
+                    end)
+                    if not Match then
+                        pcall(function()
+                            if input.UserInputType == Enum.UserInputType[Key] then
+                                Match = true
+                            end
+                        end)
+                    end
+                    if Match then
+                        State.SilentTargetLocked = false
+                        State.Targets.Silent = nil
+                        state.lastValidTarget = nil
+                    end
+                end
+            end
+            local TriggerCfg = Config["Trigger Bot"]
+            if TriggerCfg and TriggerCfg["Enabled"] and TriggerCfg["Selection"] == "Hold" then
+                local Key = GetTriggerKeybind()
+                if Key then
+                    local Match = false
+                    pcall(function()
+                        if input.KeyCode == Enum.KeyCode[Key:upper()] then
+                            Match = true
+                        end
+                    end)
+                    if not Match then
+                        pcall(function()
+                            if input.UserInputType == Enum.UserInputType[Key] then
+                                Match = true
+                            end
+                        end)
+                    end
+                    if Match then
+                        State.TriggerTargetLocked = false
+                        State.Targets.Trigger = nil
+                        state.triggerLastValidTarget = nil
+                        state.triggerFOVActive = false
+                        TriggerFOVBox.Visible = false
+                        Trigger3DFOVPart.Transparency = 1
+                    end
+                end
+            end
+            local CameraCfg = Config["Camera Aimbot"]
+            if CameraCfg and CameraCfg["Enabled"] and CameraCfg["Selection"] == "Hold" then
+                local Key = GetCameraKeybind()
+                if Key then
+                    local Match = false
+                    pcall(function()
+                        if input.KeyCode == Enum.KeyCode[Key:upper()] then
+                            Match = true
+                        end
+                    end)
+                    if not Match then
+                        pcall(function()
+                            if input.UserInputType == Enum.UserInputType[Key] then
+                                Match = true
+                            end
+                        end)
+                    end
+                    if Match then
+                        State.CameraTargetLocked = false
+                        State.Targets.Camera = nil
+                        state.cameraLastValidTarget = nil
+                        state.cameraFOVActive = false
+                        state.cameraEasingProgress = 0
+                        state.cameraLastTarget = nil
+                        CameraFOVBox.Visible = false
+                        Camera3DFOVPart.Transparency = 1
+                    end
+                end
+            end
+        end
     end
-    
-    HandleTriggerKeyRelease(input)
-    HandleCameraKeyRelease(input)
 end)
 
 local function UpdateCameraFOV()
-    local Config = GetConfig()
+    local Config = shared.Scare
     local CameraCfg = Config and Config["Camera Aimbot"]
     if not CameraCfg or not CameraCfg["Enabled"] then
         if LastFrame.CameraFOVVisible then
@@ -3945,23 +3424,13 @@ local function UpdateCameraFOV()
         end
         return
     end
-    
-    ValidateTarget("Camera")
-    
+
+    ValidateTarget("Camera Aimbot")
     local CameraTarget = State.Targets.Camera
     local fovMethod = CameraCfg["FOV Method"] or "2D"
-    local visualizeCfg = CameraCfg["Visualize"] or {}
-    local visualize = visualizeCfg["Visualize FOV"] or false
-    
-    if not CameraTarget and state.cameraLastValidTarget then
-        if CheckConditionsExceptVisible(state.cameraLastValidTarget, "Camera") then
-            State.Targets.Camera = state.cameraLastValidTarget
-            CameraTarget = state.cameraLastValidTarget
-            state.cameraLastValidTarget = nil
-        end
-    end
-    
-    if not CameraTarget or not state.cameraFOVActive then
+    local visualize = CameraCfg["Visualize"]
+
+    if not CameraTarget or not State.CameraTargetLocked then
         if LastFrame.CameraFOVVisible then
             CameraFOVBox.Visible = false
             Camera3DFOVPart.Transparency = 1
@@ -3969,7 +3438,7 @@ local function UpdateCameraFOV()
         end
         return
     end
-    
+
     if fovMethod == "2D" then
         Camera3DFOVPart.Transparency = 1
         
@@ -4015,17 +3484,10 @@ local function UpdateCameraFOV()
                 local fovConfig = getFOVConfig("Camera Aimbot", "3D")
                 if fovConfig then
                     local totalSize = Root.Size + Vector3.new(fovConfig.x * 2, fovConfig.y * 2, fovConfig.z * 2)
-                    
                     Camera3DFOVPart.Size = totalSize
                     Camera3DFOVPart.CFrame = Root.CFrame
-                    
                     local inFOV = partInFOV3D(Root, fovConfig)
-                    
-                    if inFOV then
-                        Camera3DFOVPart.Color = Color3.new(0, 1, 0)
-                    else
-                        Camera3DFOVPart.Color = Color3.new(1, 0, 0)
-                    end
+                    Camera3DFOVPart.Color = inFOV and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
                     Camera3DFOVPart.Transparency = 0.92
                 end
             end
@@ -4036,7 +3498,7 @@ local function UpdateCameraFOV()
 end
 
 local function UpdateTriggerFOV()
-    local Config = GetConfig()
+    local Config = shared.Scare
     local TriggerCfg = Config and Config["Trigger Bot"]
     if not TriggerCfg or not TriggerCfg["Enabled"] then
         if LastFrame.TriggerFOVVisible then
@@ -4046,22 +3508,13 @@ local function UpdateTriggerFOV()
         end
         return
     end
-    
-    ValidateTarget("Trigger")
-    
+
+    ValidateTarget("Trigger Bot")
     local TriggerTarget = State.Targets.Trigger
     local fovMethod = TriggerCfg["FOV Method"] or "2D"
     local visualize = TriggerCfg["Visualize"]
-    
-    if not TriggerTarget and state.triggerLastValidTarget then
-        if CheckConditionsExceptVisible(state.triggerLastValidTarget, "Trigger") then
-            State.Targets.Trigger = state.triggerLastValidTarget
-            TriggerTarget = state.triggerLastValidTarget
-            state.triggerLastValidTarget = nil
-        end
-    end
-    
-    if not TriggerTarget or not state.triggerFOVActive then
+
+    if not TriggerTarget or not State.TriggerTargetLocked then
         if LastFrame.TriggerFOVVisible then
             TriggerFOVBox.Visible = false
             Trigger3DFOVPart.Transparency = 1
@@ -4069,14 +3522,14 @@ local function UpdateTriggerFOV()
         end
         return
     end
-    
+
     if fovMethod == "Precise" then
         Trigger3DFOVPart.Transparency = 1
         TriggerFOVBox.Visible = false
         LastFrame.TriggerFOVVisible = false
         return
     end
-    
+
     if fovMethod == "2D" then
         Trigger3DFOVPart.Transparency = 1
         
@@ -4122,17 +3575,10 @@ local function UpdateTriggerFOV()
                 local fovConfig = getFOVConfig("Trigger Bot", "3D")
                 if fovConfig then
                     local totalSize = Root.Size + Vector3.new(fovConfig.x * 2, fovConfig.y * 2, fovConfig.z * 2)
-                    
                     Trigger3DFOVPart.Size = totalSize
                     Trigger3DFOVPart.CFrame = Root.CFrame
-                    
                     local inFOV = partInFOV3D(Root, fovConfig)
-                    
-                    if inFOV then
-                        Trigger3DFOVPart.Color = Color3.new(0, 1, 0)
-                    else
-                        Trigger3DFOVPart.Color = Color3.new(1, 0, 0)
-                    end
+                    Trigger3DFOVPart.Color = inFOV and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
                     Trigger3DFOVPart.Transparency = 0.92
                 end
             end
@@ -4143,7 +3589,7 @@ local function UpdateTriggerFOV()
 end
 
 local function UpdateSilentFOV()
-    local Config = GetConfig()
+    local Config = shared.Scare
     local SilentCfg = Config and Config["Silent Aimbot"]
     local SilentEnabled = SilentCfg and SilentCfg["Enabled"]
     if not SilentEnabled then
@@ -4155,15 +3601,24 @@ local function UpdateSilentFOV()
         return
     end
 
-    ValidateTarget("Silent")
+    ValidateTarget("Silent Aimbot")
     local SilentTarget = State.Targets.Silent
     local fovMethod = SilentCfg["FOV Method"] or "2D"
+
+    if not SilentTarget or not State.SilentTargetLocked then
+        if LastFrame.FOVVisible then
+            SilentFOVBox.Visible = false
+            Silent3DFOVPart.Transparency = 1
+            LastFrame.FOVVisible = false
+        end
+        return
+    end
 
     if fovMethod == "2D" then
         Silent3DFOVPart.Transparency = 1
         
         local FOVVis = false
-        if SilentCfg["Visualize"] and SilentTarget then
+        if SilentCfg["Visualize"] then
             local Char = SilentTarget.Character
             local Root = Char and Char:FindFirstChild("HumanoidRootPart")
             if Root then
@@ -4197,24 +3652,17 @@ local function UpdateSilentFOV()
             LastFrame.FOVVisible = false
         end
         
-        if SilentCfg["Visualize"] and SilentTarget then
+        if SilentCfg["Visualize"] then
             local Char = SilentTarget.Character
             local Root = Char and Char:FindFirstChild("HumanoidRootPart")
             if Root then
                 local fovConfig = getFOVConfig("Silent Aimbot", "3D")
                 if fovConfig then
                     local totalSize = Root.Size + Vector3.new(fovConfig.x * 2, fovConfig.y * 2, fovConfig.z * 2)
-                    
                     Silent3DFOVPart.Size = totalSize
                     Silent3DFOVPart.CFrame = Root.CFrame
-                    
                     local inFOV = partInFOV3D(Root, fovConfig)
-                    
-                    if inFOV then
-                        Silent3DFOVPart.Color = Color3.new(0, 1, 0)
-                    else
-                        Silent3DFOVPart.Color = Color3.new(1, 0, 0)
-                    end
+                    Silent3DFOVPart.Color = inFOV and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
                     Silent3DFOVPart.Transparency = 0.92
                 end
             end
@@ -4235,7 +3683,7 @@ local function UpdateESP()
         return
     end
     
-    local Config = GetConfig()
+    local Config = shared.Scare
     local VisualsCfg = Config and Config["Visuals"] or {}
     local NamesCfg = VisualsCfg["Names"] or {}
     local ESPEnabled = VisualsCfg["Enabled"] and NamesCfg["Enabled"]
@@ -4278,11 +3726,11 @@ local function UpdateESP()
             local Draw = NameESPDrawings[Plr]
             
             local isLocked = false
-            if Plr == State.Targets.Silent and CheckConditions(Plr, false, "Silent Aimbot") then
+            if Plr == State.Targets.Silent and CheckChecks(Plr, "Silent Aimbot") then
                 isLocked = true
-            elseif Plr == State.Targets.Trigger and CheckConditions(Plr, false, "Trigger Bot") then
+            elseif Plr == State.Targets.Trigger and CheckChecks(Plr, "Trigger Bot") then
                 isLocked = true
-            elseif Plr == State.Targets.Camera and CheckConditions(Plr, false, "Camera Aimbot") then
+            elseif Plr == State.Targets.Camera and CheckChecks(Plr, "Camera Aimbot") then
                 isLocked = true
             end
             
@@ -4316,7 +3764,7 @@ local function UpdatePanel()
         return
     end
     
-    local Config = GetConfig()
+    local Config = shared.Scare
     local VisualsCfg = Config and Config["Visuals"] or {}
     local PanelCfg = VisualsCfg["Panel"] or {}
     local PanelEnabled = VisualsCfg["Enabled"] and PanelCfg["Enabled"]
@@ -4343,7 +3791,7 @@ local function UpdatePanel()
         
         local function getTargetName(target, mode)
             if target and target.Parent then
-                if CheckConditions(target, false, mode) then
+                if CheckChecks(target, mode) then
                     return target.DisplayName or target.Name or "Player"
                 end
             end
@@ -4373,7 +3821,7 @@ local function UpdatePanel()
             end
         end
         
-        local validSilentTarget = silentTarget and silentTarget.Parent and CheckConditions(silentTarget, false, "Silent Aimbot")
+        local validSilentTarget = silentTarget and silentTarget.Parent and CheckChecks(silentTarget, "Silent Aimbot")
         if validSilentTarget then
             local char = silentTarget.Character
             if char then
@@ -4558,73 +4006,66 @@ local function UpdatePanel()
 end
 
 local function UpdateTriggerBot()
-    local Config = GetConfig()
+    local Config = shared.Scare
     local TriggerCfg = Config and Config["Trigger Bot"]
-    if not TriggerCfg or not TriggerCfg["Enabled"] then
-        return
-    end
+    if not TriggerCfg or not TriggerCfg["Enabled"] then return end
     
-    if not State.TriggerTargetLocked then
-        return
-    end
+    if not State.TriggerTargetLocked then return end
     
-    ValidateTarget("Trigger")
+    ValidateTarget("Trigger Bot")
     
     local Target = State.Targets.Trigger
-    if not Target then
-        return
+    if not Target then return end
+    
+    -- distance check with blank prevention override
+    local MaxRange = GetSelectingDistance("Trigger Bot")
+    local BlankPrevention = TriggerCfg["Blank Prevention"]
+    
+    if BlankPrevention == true then
+        MaxRange = 204.2
     end
     
-    if not GetWeaponCheckEnabled("Trigger Bot") then
-        return
+    if MaxRange > 0 and MaxRange ~= math.huge then
+        local Character = LocalPlayer.Character
+        if not Character then return end
+        local RootPart = Character:FindFirstChild("HumanoidRootPart")
+        if not RootPart then return end
+        local TargetRoot = Target.Character and Target.Character:FindFirstChild("HumanoidRootPart")
+        if not TargetRoot then return end
+        local Dist = (RootPart.Position - TargetRoot.Position).Magnitude
+        if Dist > MaxRange then return end
+    end
+    
+    local Weapons = TriggerCfg["Weapons"]
+    if Weapons then
+        local Character = LocalPlayer.Character
+        if Character then
+            local Tool = Character:FindFirstChildOfClass("Tool")
+            if Tool then
+                local ToolName = Tool.Name
+                local WeaponEnabled = Weapons[ToolName]
+                if WeaponEnabled == false then return end
+            end
+        end
     end
     
     local inFOV = IsInFOV(Target, "Trigger Bot")
-    if not inFOV then
-        return
-    end
+    if not inFOV then return end
     
-    if not CheckConditions(Target, false, "Trigger Bot") then
-        return
-    end
+    if not CheckChecks(Target, "Trigger Bot") then return end
     
-    if IsLeftControlHeld() then
-        return
-    end
+    if IsLeftControlHeld() then return end
     
     local Character = LocalPlayer.Character
-    if not Character then
-        return
-    end
+    if not Character then return end
     
     local Tool = Character:FindFirstChildOfClass("Tool")
-    if not Tool then
-        return
-    end
+    if not Tool then return end
     
-    if Tool.Name == "[Knife]" or Tool.Name == "Knife" then
-        return
-    end
+    if Tool.Name == "[Knife]" or Tool.Name == "Knife" then return end
     
     local CurrentTime = tick()
     local CurrentWeapon = Tool.Name
-    
-    if state.lastWeaponName ~= CurrentWeapon then
-        local Delay = GetWeaponSwitchDelay()
-        if Delay > 0 then
-            state.lastWeaponSwitchTime = CurrentTime
-            state.lastWeaponName = CurrentWeapon
-            return
-        end
-        state.lastWeaponName = CurrentWeapon
-    end
-    
-    local WeaponDelay = GetWeaponSwitchDelay()
-    local TimeSinceWeaponSwitch = CurrentTime - state.lastWeaponSwitchTime
-    
-    if WeaponDelay > 0 and TimeSinceWeaponSwitch < WeaponDelay then
-        return
-    end
     
     local Cooldown = GetTriggerCooldownForWeapon(CurrentWeapon)
     local LastAttackTime = state.weaponLastAttackTime[CurrentWeapon] or 0
@@ -4718,11 +4159,8 @@ local function UpdateTriggerBot()
 end
 
 local function UpdateSharedTarget()
-    local Config = GetConfig()
-    if not Config then return end
-    
     if state.sharedTargetLocked and state.sharedTarget then
-        if not CheckConditionsExceptVisible(state.sharedTarget, "Silent") then
+        if not CheckChecksNoVisible(state.sharedTarget, "Silent Aimbot") then
             state.sharedTarget = nil
             state.sharedTargetLocked = false
             state.silentOnly = false
@@ -4732,51 +4170,11 @@ local function UpdateSharedTarget()
     end
 end
 
-local function UpdateShootDetection()
-    if not state.shootDetectionEnabled then
-        return
-    end
-    
-    local Config = GetConfig()
-    local TriggerCfg = Config and Config["Trigger Bot"]
-    if not TriggerCfg or not TriggerCfg["Enabled"] then
-        return
-    end
-    
-    local SDCfg = TriggerCfg["Shoot Detection"] or {}
-    local UseTrigger = SDCfg["Use Trigger"]
-    
-    if not UseTrigger then
-        return
-    end
-    
-    local MaxR = GetSelectingDistance("Trigger Bot")
-    local Target = GetClosestPlayerToCursor(MaxR, "Trigger Bot")
-    
-    if Target and CheckConditions(Target, false, "Trigger Bot") then
-        state.lockedTarget = Target
-        State.TriggerTargetLocked = true
-        State.Targets.Trigger = Target
-        state.triggerLastValidTarget = nil
-        state.triggerFOVActive = true
-    else
-        state.lockedTarget = nil
-        State.TriggerTargetLocked = false
-        State.Targets.Trigger = nil
-        state.triggerLastValidTarget = nil
-        state.triggerFOVActive = false
-        TriggerFOVBox.Visible = false
-        Trigger3DFOVPart.Transparency = 1
-    end
-end
-
 local function GetCameraTargetPart(Player)
     local Character = Player.Character
-    if not Character then
-        return nil
-    end
+    if not Character then return nil end
     
-    local Config = GetConfig()
+    local Config = shared.Scare
     if not Config then return nil end
     local CameraCfg = Config["Camera Aimbot"]
     if not CameraCfg then return nil end
@@ -4812,37 +4210,21 @@ local function GetCameraTargetPart(Player)
 end
 
 local function UpdateCameraAimbot()
-    local Config = GetConfig()
+    local Config = shared.Scare
     local CameraCfg = Config and Config["Camera Aimbot"]
-    if not CameraCfg or not CameraCfg["Enabled"] then
-        return
-    end
+    if not CameraCfg or not CameraCfg["Enabled"] then return end
     
+    -- do not automatically lock on – only proceed if already locked
     if not State.CameraTargetLocked then
-        local SelMode = GetCameraSelectionMode()
-        if SelMode == "Always" then
-            local MaxR = GetSelectingDistance("Camera Aimbot")
-            local Target = GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
-            if Target and CheckConditions(Target, false, "Camera Aimbot") and IsInFOV(Target, "Camera Aimbot") then
-                State.CameraTargetLocked = true
-                State.Targets.Camera = Target
-                state.cameraFOVActive = true
-                state.cameraEasingProgress = 0
-                state.cameraLastTarget = nil
-                state.cameraShakeTime = 0
-            end
-        end
         return
     end
     
-    ValidateTarget("Camera")
+    ValidateTarget("Camera Aimbot")
     
     local Target = State.Targets.Camera
-    if not Target then
-        return
-    end
+    if not Target then return end
     
-    if not CheckConditions(Target, false, "Camera Aimbot") then
+    if not CheckChecks(Target, "Camera Aimbot") then
         State.CameraTargetLocked = false
         State.Targets.Camera = nil
         state.cameraFOVActive = false
@@ -4855,24 +4237,16 @@ local function UpdateCameraAimbot()
     end
     
     local inFOV = IsInFOV(Target, "Camera Aimbot")
-    if not inFOV then
-        return
-    end
+    if not inFOV then return end
     
     local Character = LocalPlayer.Character
-    if not Character then
-        return
-    end
+    if not Character then return end
     
     local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    if not Humanoid or Humanoid.Health <= 0 then
-        return
-    end
+    if not Humanoid or Humanoid.Health <= 0 then return end
     
     local TargetChar = Target.Character
-    if not TargetChar then
-        return
-    end
+    if not TargetChar then return end
     
     local TargetPos = nil
     local TargetPart = GetCameraTargetPart(Target)
@@ -4900,173 +4274,81 @@ local function UpdateCameraAimbot()
         end
     end
     
-    local AimProperties = Config["Aim Properties"] or {}
+    local SmoothingCfg = CameraCfg["Smoothing"] or {}
+    local xSmooth = SmoothingCfg["X Smoothing"] or 0.083
+    local ySmooth = SmoothingCfg["Y Smoothing"] or 0.083
+    local SmoothingValue = (xSmooth + ySmooth) / 2
     
-    local SmoothingValue = 0.34
-    local Snappiness = 0.05
-    local SensitivityMultiplier = 1.0
-    local PullBackEnabled = true
-    
-    local PullBackStrength = AimProperties["Pull Back Strength"] or {}
-    if PullBackStrength["Enabled"] == false then
-        PullBackEnabled = false
-    end
-    
-    local Smoothing = AimProperties["Smoothing"] or {}
-    if Smoothing["Enabled"] then
-        SmoothingValue = Smoothing["X Smoothing"] or 0.34
-    end
-    
-    local RangeBasedSmoothing = AimProperties["Range Based Smoothing"] or {}
-    if RangeBasedSmoothing["Enabled"] then
-        local RootPart = TargetChar:FindFirstChild("HumanoidRootPart")
-        if RootPart then
-            local Distance = (Camera.CFrame.Position - RootPart.Position).Magnitude
-            local FarRange = RangeBasedSmoothing["Far Range"] or {}
-            local MediumRange = RangeBasedSmoothing["Medium Range"] or {}
-            local CloseRange = RangeBasedSmoothing["Close Range"] or {}
-            
-            if Distance >= 80 then
-                SmoothingValue = FarRange["X"] or 0.34
-            elseif Distance >= 35 then
-                SmoothingValue = MediumRange["X"] or 0.34
-            else
-                SmoothingValue = CloseRange["X"] or 0.34
-            end
-        end
-    end
-    
-    local SnappinessCfg = AimProperties["Snappiness"] or {}
-    if SnappinessCfg["Enabled"] then
-        local SnapMethod = SnappinessCfg["Snap Method"] or "Basic"
-        if SnapMethod == "Basic" then
-            local BasicCfg = SnappinessCfg["Basic"] or {}
-            Snappiness = BasicCfg["X"] or 0.05
-        elseif SnapMethod == "Advanced" then
-            local AdvancedCfg = SnappinessCfg["Advanced"] or {}
-            Snappiness = AdvancedCfg["X Strength"] or 0.05
-        end
-    end
-    
-    local Sensitivity = AimProperties["Sensitivity"] or {}
-    if Sensitivity["Enabled"] then
-        local SensMethod = Sensitivity["Sensitivity Method"] or "Basic"
-        if SensMethod == "Basic" then
-            local BasicCfg = Sensitivity["Basic"] or {}
-            SensitivityMultiplier = (BasicCfg["X"] or 0.091) * 10
-        elseif SensMethod == "Advanced" then
-            local AdvancedCfg = Sensitivity["Advanced"] or {}
-            SensitivityMultiplier = (AdvancedCfg["X Strength"] or 0.24) * 10
-        end
-        SensitivityMultiplier = math.clamp(SensitivityMultiplier, 0.1, 10)
-    end
-    
-    SmoothingValue = SmoothingValue * SensitivityMultiplier
-    SmoothingValue = math.clamp(SmoothingValue, 0.001, 1)
-    
-    if Target ~= state.cameraLastTarget then
-        state.cameraEasingProgress = 0
-        state.cameraLastTarget = Target
-    end
-    
-    state.cameraEasingProgress = math.min((state.cameraEasingProgress or 0) + Snappiness, 1)
-    
-    local ShakeOffset = Vector3.new(0, 0, 0)
-    local Shake = AimProperties["Shake"] or {}
-    if Shake["Enabled"] then
-        local DeltaTime = 1 / 60
-        state.cameraShakeTime = (state.cameraShakeTime or 0) + DeltaTime
-        
-        local Frequency = Shake["Frequency"] or 7
-        local Intensity = Shake["Intensity"] or { X = 5, Y = 5, Z = 4 }
-        local Decay = Shake["Decay"] or 55
-        
-        local DecayFactor = math.exp(-Decay * state.cameraShakeTime)
-        local Time = state.cameraShakeTime * Frequency * math.pi * 2
-        
-        ShakeOffset = Vector3.new(
-            math.sin(Time * 1.3) * math.cos(Time * 0.7) * (Intensity.X or 0) * DecayFactor * 0.02,
-            math.cos(Time * 1.1) * math.sin(Time * 0.9) * (Intensity.Y or 0) * DecayFactor * 0.02,
-            math.sin(Time * 0.8) * math.cos(Time * 1.2) * (Intensity.Z or 0) * DecayFactor * 0.02
-        )
-    end
-    
-    TargetPos = TargetPos + ShakeOffset
-    
-    local Humanization = AimProperties["Humanization"] or {}
-    local Transitioning = Humanization["Transitioning"] or {}
-    local TransitionAmountX = 0
-    local TransitionAmountY = 0
-    
-    if Transitioning["Enabled"] then
-        local TransitionCfg = Transitioning["Transition Amount"] or {}
-        TransitionAmountX = TransitionCfg["X"] or 0.6872
-        TransitionAmountY = TransitionCfg["Y"] or 0.7392
-        
-        TransitionAmountX = math.clamp(TransitionAmountX, 0, 1)
-        TransitionAmountY = math.clamp(TransitionAmountY, 0, 1)
-    end
+    local EasingSystem = CameraCfg["Easing System"] or "Linear"
     
     local AimMethod = CameraCfg["Aim Method"] or "Memory"
     local MousePos = UserInputService:GetMouseLocation()
     local ScreenPos, OnScreen = Camera:WorldToViewportPoint(TargetPos)
-    local EffectiveSmoothing = SmoothingValue * state.cameraEasingProgress
     
-    if not PullBackEnabled then
-        if AimMethod == "Memory" or AimMethod == "Both" then
-            local Cam = Camera
-            local CurrentLook = Cam.CFrame.LookVector
-            local TargetLook = (TargetPos - Cam.CFrame.Position).Unit
-            local AimLook = CurrentLook:Lerp(TargetLook, EffectiveSmoothing)
-            Cam.CFrame = CFrame.new(Cam.CFrame.Position, Cam.CFrame.Position + AimLook)
+    if AimMethod == "Memory" or AimMethod == "Both" then
+        local Cam = Camera
+        local CurrentLook = Cam.CFrame.LookVector
+        local TargetLook = (TargetPos - Cam.CFrame.Position).Unit
+        
+        local progress = math.min((state.cameraEasingProgress or 0) + 0.05, 1)
+        
+        local function easeInOut(t)
+            return t < 0.5 and 2 * t * t or 1 - math.pow(-2 * t + 2, 2) / 2
         end
         
-        if AimMethod == "Mouse" or AimMethod == "Both" then
-            if OnScreen and ScreenPos.Z > 0 then
-                local DeltaX = ScreenPos.X - MousePos.X
-                local DeltaY = ScreenPos.Y - MousePos.Y
-                local AimDeltaX = DeltaX * EffectiveSmoothing
-                local AimDeltaY = DeltaY * EffectiveSmoothing
-                if math.abs(AimDeltaX) > 0.3 or math.abs(AimDeltaY) > 0.3 then
-                    mousemoverel(math.floor(AimDeltaX), math.floor(AimDeltaY))
-                end
-            end
-        end
-    else
-        if AimMethod == "Memory" or AimMethod == "Both" then
-            if Transitioning["Enabled"] then
-                local Cam = Camera
-                local CurrentLook = Cam.CFrame.LookVector
-                local TargetLook = (TargetPos - Cam.CFrame.Position).Unit
-                local AimLook = CurrentLook:Lerp(TargetLook, EffectiveSmoothing)
-                local MouseDelta = UserInputService:GetMouseDelta()
-                local MouseInfluenceX = math.clamp(math.abs(MouseDelta.X) * 0.01 * TransitionAmountX, 0, 1)
-                local MouseInfluenceY = math.clamp(math.abs(MouseDelta.Y) * 0.01 * TransitionAmountY, 0, 1)
-                local MouseInfluence = math.max(MouseInfluenceX, MouseInfluenceY)
-                AimLook = AimLook:Lerp(CurrentLook, MouseInfluence)
-                Cam.CFrame = CFrame.new(Cam.CFrame.Position, Cam.CFrame.Position + AimLook)
-            end
+        local function easeOut(t)
+            return 1 - math.pow(1 - t, 3)
         end
         
-        if AimMethod == "Mouse" or AimMethod == "Both" then
-            if OnScreen and ScreenPos.Z > 0 then
-                local DeltaX = ScreenPos.X - MousePos.X
-                local DeltaY = ScreenPos.Y - MousePos.Y
-                if Transitioning["Enabled"] then
-                    local MouseDelta = UserInputService:GetMouseDelta()
-                    local AimDeltaX = DeltaX * EffectiveSmoothing
-                    local AimDeltaY = DeltaY * EffectiveSmoothing
-                    local FinalDeltaX = AimDeltaX * (1 - TransitionAmountX) + MouseDelta.X * TransitionAmountX
-                    local FinalDeltaY = AimDeltaY * (1 - TransitionAmountY) + MouseDelta.Y * TransitionAmountY
-                    if math.abs(FinalDeltaX) > 0.3 or math.abs(FinalDeltaY) > 0.3 then
-                        mousemoverel(math.floor(FinalDeltaX), math.floor(FinalDeltaY))
-                    end
-                else
-                    if math.abs(DeltaX) > 0.5 or math.abs(DeltaY) > 0.5 then
-                        mousemoverel(math.floor(DeltaX * EffectiveSmoothing), math.floor(DeltaY * EffectiveSmoothing))
-                    end
-                end
+        local function easeIn(t)
+            return t * t * t
+        end
+        
+        local easedProgress = progress
+        if EasingSystem == "InOut" then
+            easedProgress = easeInOut(progress)
+        elseif EasingSystem == "Out" then
+            easedProgress = easeOut(progress)
+        elseif EasingSystem == "In" then
+            easedProgress = easeIn(progress)
+        end
+        
+        local smooth = SmoothingValue * easedProgress
+        local AimLook = CurrentLook:Lerp(TargetLook, smooth)
+        Cam.CFrame = CFrame.new(Cam.CFrame.Position, Cam.CFrame.Position + AimLook)
+        state.cameraEasingProgress = progress
+    end
+    
+    if AimMethod == "Mouse" or AimMethod == "Both" then
+        if OnScreen and ScreenPos.Z > 0 then
+            local DeltaX = ScreenPos.X - MousePos.X
+            local DeltaY = ScreenPos.Y - MousePos.Y
+            
+            local progress = math.min((state.cameraEasingProgress or 0) + 0.05, 1)
+            
+            local function easeInOut(t)
+                return t < 0.5 and 2 * t * t or 1 - math.pow(-2 * t + 2, 2) / 2
             end
+            
+            local easedProgress = progress
+            if EasingSystem == "InOut" then
+                easedProgress = easeInOut(progress)
+            elseif EasingSystem == "Out" then
+                easedProgress = 1 - math.pow(1 - progress, 3)
+            elseif EasingSystem == "In" then
+                easedProgress = progress * progress * progress
+            end
+            
+            local smoothX = xSmooth * easedProgress
+            local smoothY = ySmooth * easedProgress
+            
+            local AimDeltaX = DeltaX * smoothX
+            local AimDeltaY = DeltaY * smoothY
+            
+            if math.abs(AimDeltaX) > 0.3 or math.abs(AimDeltaY) > 0.3 then
+                mousemoverel(math.floor(AimDeltaX), math.floor(AimDeltaY))
+            end
+            state.cameraEasingProgress = progress
         end
     end
 end
@@ -5083,7 +4365,6 @@ preRenderConnection = RunService.RenderStepped:Connect(function()
     
     clearHitboxCache()
     UpdateSharedTarget()
-    UpdateShootDetection()
     UpdateSilentFOV()
     UpdateTriggerFOV()
     UpdateCameraFOV()
@@ -5096,15 +4377,9 @@ end)
 Players.PlayerRemoving:Connect(function(Plr)
     local Draw = NameESPDrawings[Plr]
     if Draw then Draw:Remove(); NameESPDrawings[Plr] = nil end
-    if state.lastValidTarget == Plr then
-        state.lastValidTarget = nil
-    end
-    if state.triggerLastValidTarget == Plr then
-        state.triggerLastValidTarget = nil
-    end
-    if state.cameraLastValidTarget == Plr then
-        state.cameraLastValidTarget = nil
-    end
+    if state.lastValidTarget == Plr then state.lastValidTarget = nil end
+    if state.triggerLastValidTarget == Plr then state.triggerLastValidTarget = nil end
+    if state.cameraLastValidTarget == Plr then state.cameraLastValidTarget = nil end
     if state.sharedTarget == Plr then
         state.sharedTarget = nil
         state.sharedTargetLocked = false
