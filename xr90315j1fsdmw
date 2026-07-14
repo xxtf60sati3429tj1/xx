@@ -326,11 +326,11 @@ local function isInPreciseFOV(targetChar)
     return false
 end
 
-getgenv().script_key = ""
+getgenv().script_key = shared.Scare and shared.Scare['Auth'] and shared.Scare['Auth']['Key'] or ""
 
 if LRM_INIT_SCRIPT then
     LRM_INIT_SCRIPT(function()
-        getgenv().script_key = ""
+        getgenv().script_key = shared.Scare and shared.Scare['Auth'] and shared.Scare['Auth']['Key'] or ""
     end)
 end
 
