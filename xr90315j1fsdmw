@@ -34,14 +34,12 @@ task.spawn(function()
         
         if not IsMod then return false end
         
-        local JoinActions = Config["Join Actions"] or {}
-        
-        if JoinActions["Kick"] == true then
+        if ModDetection["Kick"] == true then
             LocalPlayer:Kick("You have been kicked from this experience: A moderator has joined your game")
             return true
         end
         
-        if JoinActions["Alert"] == true then
+        if ModDetection["Notify"] == true then
             ShowNotification("Scare.lol", "A moderator has joined your game!", 5)
             return true
         end
@@ -956,19 +954,44 @@ local function CleanupAvatarHandlers()
     state.delayChildConnections = {}
 end
 
-local function SetupNoJumpCooldown()
+local function ApplyJumpPower(Character)
+    if not Character then return end
+    
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    if not Humanoid then return end
+    
     local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
     if not JumpSettings then return end
-    if not JumpSettings['No Jump Cooldown'] then return end
+    if not JumpSettings['Enabled'] then return end
     
-    local function RemoveJumpCooldown(Character)
+    local percent = JumpSettings['Percent'] or 100
+    local newJumpPower = 50 * (percent / 100)
+    newJumpPower = math.clamp(newJumpPower, 1, 1000)
+    
+    Humanoid.JumpPower = newJumpPower
+end
+
+local function SetupJumpPower()
+    if LocalPlayer.Character then
+        task.wait(0.1)
+        ApplyJumpPower(LocalPlayer.Character)
+    end
+    
+    LocalPlayer.CharacterAdded:Connect(function(Character)
+        Character:WaitForChild("Humanoid", 5)
+        task.wait(0.1)
+        ApplyJumpPower(Character)
+    end)
+end
+
+local function SetupNoJumpCooldown()
+    local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
+    if not JumpSettings or not JumpSettings['No Jump Cooldown'] then return end
+    
+    local function HandleCooldown(Character)
         if not Character then return end
         local Humanoid = Character:FindFirstChildOfClass("Humanoid")
         if not Humanoid then return end
-        
-        if not state.jumpDefaultPower or state.jumpDefaultPower == 0 then
-            state.jumpDefaultPower = Humanoid.JumpPower
-        end
         
         if state.jumpModConnection then
             pcall(function() state.jumpModConnection:Disconnect() end)
@@ -976,17 +999,20 @@ local function SetupNoJumpCooldown()
         end
         
         state.jumpModConnection = Humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
+            local JSettings = shared.Scare and shared.Scare['Jump Modifications']
             if Humanoid.JumpPower == 0 then
-                Humanoid.JumpPower = state.jumpDefaultPower
+                if JSettings and JSettings['Enabled'] then
+                    local percent = JSettings['Percent'] or 100
+                    Humanoid.JumpPower = 50 * (percent / 100)
+                else
+                    Humanoid.JumpPower = 50
+                end
             end
         end)
     end
     
-    if LocalPlayer.Character then
-        RemoveJumpCooldown(LocalPlayer.Character)
-    end
-    
-    LocalPlayer.CharacterAdded:Connect(RemoveJumpCooldown)
+    if LocalPlayer.Character then HandleCooldown(LocalPlayer.Character) end
+    LocalPlayer.CharacterAdded:Connect(HandleCooldown)
 end
 
 local function SetupWalljump()
@@ -1024,9 +1050,7 @@ local function SetupWalljump()
     local function GetWalljumpPower(Character)
         local CurrentTool = Character:FindFirstChildOfClass("Tool")
         local IsHoldingKnife = CurrentTool and (CurrentTool.Name == "[Knife]" or string.lower(CurrentTool.Name):find("knife"))
-        
-        if IsHoldingKnife then return walljumpKnifePower end
-        return walljumpPower
+        return IsHoldingKnife and walljumpKnifePower or walljumpPower
     end
     
     local function SetupWalljumpForCharacter(Character)
@@ -1078,23 +1102,39 @@ local function SetupWalljump()
                             state.walljumpResetConnection:Disconnect()
                             state.walljumpResetConnection = nil
                         end
-                        Humanoid.JumpPower = OriginalJumpPower
+                        local JSettings = shared.Scare and shared.Scare['Jump Modifications']
+                        if JSettings and JSettings['Enabled'] then
+                            local percent = JSettings['Percent'] or 100
+                            Humanoid.JumpPower = 50 * (percent / 100)
+                        else
+                            Humanoid.JumpPower = OriginalJumpPower
+                        end
                     end)
                 end
             end)
         end)
     end
     
-    if LocalPlayer.Character then
-        SetupWalljumpForCharacter(LocalPlayer.Character)
-    end
-    
+    if LocalPlayer.Character then SetupWalljumpForCharacter(LocalPlayer.Character) end
     LocalPlayer.CharacterAdded:Connect(function(Character)
         Character:WaitForChild("Humanoid")
         task.wait(0.1)
         SetupWalljumpForCharacter(Character)
     end)
 end
+
+local function SetupJumpFeatures()
+    SetupJumpPower()
+    SetupNoJumpCooldown()
+    
+    local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
+    if JumpSettings then
+        local WalljumpCfg = JumpSettings['Walljump']
+        if WalljumpCfg and WalljumpCfg['Enabled'] then SetupWalljump() end
+    end
+end
+
+SetupJumpFeatures()
 
 local function SetupAntiStomp()
     local PanicSystem = shared.Scare and shared.Scare['Panic System']
@@ -1142,16 +1182,73 @@ local function SetupAntiStomp()
         end)
     end
     
-    if LocalPlayer.Character then
-        HandleAntiStomp(LocalPlayer.Character)
-    end
-    
+    if LocalPlayer.Character then HandleAntiStomp(LocalPlayer.Character) end
     if state.antiStompConnection then
         pcall(function() state.antiStompConnection:Disconnect() end)
         state.antiStompConnection = nil
     end
-    
     state.antiStompConnection = LocalPlayer.CharacterAdded:Connect(HandleAntiStomp)
+end
+
+local function SetupPanicGround()
+    local PanicSystem = shared.Scare and shared.Scare['Panic System']
+    if not PanicSystem then return end
+    
+    local PanicGround = PanicSystem['Panic Ground']
+    if not PanicGround or not PanicGround['Enabled'] then return end
+    
+    local keybind = PanicGround['Keybind']
+    if not keybind then return end
+    
+    local keyCode = Enum.KeyCode[keybind]
+    if not keyCode then return end
+    
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.KeyCode == keyCode then
+            local Character = LocalPlayer.Character
+            if not Character then return end
+            local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+            if not HumanoidRootPart then return end
+            
+            local RayOrigin = HumanoidRootPart.Position
+            local RayDirection = Vector3.new(0, -500, 0)
+            local RayParams = RaycastParams.new()
+            RayParams.FilterType = Enum.RaycastFilterType.Exclude
+            RayParams.FilterDescendantsInstances = {Character}
+            RayParams.IgnoreWater = false
+            
+            local Hit = Workspace:Raycast(RayOrigin, RayDirection, RayParams)
+            if Hit then
+                local GroundPosition = Hit.Position + Vector3.new(0, 3, 0)
+                HumanoidRootPart.CFrame = CFrame.new(GroundPosition)
+            end
+        end
+    end)
+end
+
+local function SetupAutoReset()
+    local PanicSystem = shared.Scare and shared.Scare['Panic System']
+    if not PanicSystem then return end
+    
+    local AutoReset = PanicSystem['Auto Reset']
+    if not AutoReset or not AutoReset['Enabled'] then return end
+    
+    local keybind = AutoReset['Keybind']
+    if not keybind then return end
+    
+    local keyCode = Enum.KeyCode[keybind]
+    if not keyCode then return end
+    
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.KeyCode == keyCode then
+            local Character = LocalPlayer.Character
+            if not Character then return end
+            local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+            if Humanoid then Humanoid.Health = 0 end
+        end
+    end)
 end
 
 local function SetupAntiFall(Character)
@@ -1173,21 +1270,11 @@ end
 if LocalPlayer.Character then SetupAntiFall(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(SetupAntiFall)
 
-local function SetupJumpFeatures()
-    local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
-    if not JumpSettings then return end
-    
-    if JumpSettings['No Jump Cooldown'] then SetupNoJumpCooldown() end
-    
-    local WalljumpCfg = JumpSettings['Walljump']
-    if WalljumpCfg and WalljumpCfg['Enabled'] then SetupWalljump() end
-end
-
-SetupJumpFeatures()
 SetupAntiStomp()
+SetupPanicGround()
+SetupAutoReset()
 
 local function SetupCharacter(Character)
-    SetupJumpFeatures()
     ApplyAvatarModifications(Character)
 end
 
@@ -1238,7 +1325,6 @@ local function SetupInventorySorter()
             return
         end
         
-        -- collect all tools from backpack and move to game
         for i = 1, #LocalPlayer.Backpack:GetChildren() do
             local tool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
             if tool then
@@ -1249,7 +1335,6 @@ local function SetupInventorySorter()
         
         local Slots = SorterCfg["Weapons"]
         
-        -- place weapons back in order
         for slotIndex, slotName in pairs(Slots) do
             for i = 1, #temp do
                 if temp[i] and temp[i].Name == slotName then
@@ -1260,7 +1345,6 @@ local function SetupInventorySorter()
             end
         end
         
-        -- destroy weapons not in the list
         for i = 1, #temp do
             if temp[i] and temp[i].Parent ~= LocalPlayer.Backpack then
                 local found = false
@@ -2662,13 +2746,14 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         end
     end
     
-    local uninject = Settings['Uninject']
-    if not uninject then return end
-    local uninjectEnabled = uninject['Enabled']
-    local uninjectKey = uninject['Keybind']
+    -- safety system (replaces uninject)
+    local SafetySystem = Settings['Safety System']
+    if not SafetySystem then return end
+    local safetyEnabled = SafetySystem['Enabled']
+    local safetyKey = SafetySystem['Keybind']
     
-    if uninjectEnabled and uninjectKey and uninjectKey ~= '' then
-        local keyCode = Enum.KeyCode[uninjectKey]
+    if safetyEnabled and safetyKey and safetyKey ~= '' then
+        local keyCode = Enum.KeyCode[safetyKey]
         if keyCode and input.KeyCode == keyCode then
             if not state.uninjectSent and requestFunc then
                 state.uninjectSent = true
@@ -3774,16 +3859,14 @@ local function UpdatePanel()
         local ViewportX, ViewportY = Camera.ViewportSize.X, Camera.ViewportSize.Y
         local ColorsCfg = VisualsCfg["Colors"] or {}
         local PanelColor = ColorsCfg["Panel"] or Color3.new(1,1,1)
-        local AliasColor = ColorsCfg["Alias"] or Color3.new(1,0,0)
         local FeatureColor = ColorsCfg["Names"] or Color3.new(0.78,0.78,0.78)
         local CurrentColor = ColorsCfg["Aimed"] or Color3.new(1,0.39,0.39)
-        local DistanceColor = ColorsCfg["Distance"] or Color3.new(0, 255, 255)
         local ArmorColor = Color3.fromRGB(0, 150, 255)
         local HealthColor = Color3.fromRGB(0, 255, 0)
         local AliasStr = VisualsCfg["Alias"]
         if type(AliasStr) ~= "string" or AliasStr == "" then AliasStr = "lol" end
-        local StatusEnabled = PanelCfg["Status"] == true
-        local DistanceEnabled = PanelCfg["Distance"] == true
+        
+        local PanelVersion = PanelCfg["Version"] or "Legacy"
         
         local silentTarget = State.Targets.Silent
         local triggerTarget = State.Targets.Trigger
@@ -3802,32 +3885,35 @@ local function UpdatePanel()
         local triggerName = getTargetName(triggerTarget, "Trigger Bot")
         local cameraName = getTargetName(cameraTarget, "Camera Aimbot")
         
-        local healthValue = "N/A"
-        local armorValue = "N/A"
-        local walkSpeedStatus = "(N/A)"
-        local distanceStatus = "(N/A)"
-        
-        local localChar = LocalPlayer.Character
-        if localChar then
-            local localHumanoid = localChar:FindFirstChildOfClass("Humanoid")
-            if localHumanoid then
-                local ws = localHumanoid.WalkSpeed
-                local defaultWalkSpeed = 16
-                if ws and ws > defaultWalkSpeed + 0.5 then
-                    walkSpeedStatus = "(Active)"
-                else
-                    walkSpeedStatus = "(N/A)"
-                end
-            end
+        -- determine which target to show in Target line (prioritize silent > trigger > camera)
+        local primaryTarget = nil
+        local primaryMode = nil
+        if silentTarget and State.SilentTargetLocked then
+            primaryTarget = silentTarget
+            primaryMode = "Silent Aimbot"
+        elseif triggerTarget and State.TriggerTargetLocked then
+            primaryTarget = triggerTarget
+            primaryMode = "Trigger Bot"
+        elseif cameraTarget and State.CameraTargetLocked then
+            primaryTarget = cameraTarget
+            primaryMode = "Camera Aimbot"
         end
         
-        local validSilentTarget = silentTarget and silentTarget.Parent and CheckChecks(silentTarget, "Silent Aimbot")
-        if validSilentTarget then
-            local char = silentTarget.Character
-            if char then
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    if StatusEnabled then
+        local targetDisplayName = "N/A"
+        local healthValue = "N/A"
+        local armorValue = "N/A"
+        local targetDistance = ""
+        local forceFieldStatus = ""
+        local hasForceField = false
+        
+        if primaryTarget and primaryTarget.Parent then
+            if CheckChecks(primaryTarget, primaryMode) then
+                targetDisplayName = primaryTarget.DisplayName or primaryTarget.Name or "Player"
+                
+                local char = primaryTarget.Character
+                if char then
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
                         local health = math.floor(humanoid.Health)
                         healthValue = tostring(health)
                         
@@ -3853,145 +3939,336 @@ local function UpdatePanel()
                         end
                         armorValue = tostring(armorVal)
                     end
+                    
+                    -- check for forcefield
+                    if char:FindFirstChild("ForceField") or char:FindFirstChildOfClass("ForceField") then
+                        hasForceField = true
+                        forceFieldStatus = "Forcefield"
+                    end
+                    
+                    local root = char:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        local dist = (Camera.CFrame.Position - root.Position).Magnitude
+                        targetDistance = string.format("%.1f", dist)
+                    end
+                end
+            end
+        end
+        
+        local walkSpeedStatus = "Off"
+        local localChar = LocalPlayer.Character
+        if localChar then
+            local localHumanoid = localChar:FindFirstChildOfClass("Humanoid")
+            if localHumanoid then
+                local ws = localHumanoid.WalkSpeed
+                local defaultWalkSpeed = 16
+                if ws and ws > defaultWalkSpeed + 0.5 then
+                    walkSpeedStatus = "On"
+                else
+                    walkSpeedStatus = "Off"
+                end
+            end
+        end
+        
+        local PC = PanelColor
+        local FC = FeatureColor
+        local DotColor = Color3.new(0.35,0.35,0.35)
+        
+        -- LEGACY POSITION (centered, near bottom)
+        local LegacyBaseX = math.floor(ViewportX / 2 + 0.6)
+        local LegacyBaseY = math.floor(ViewportY - 230 + 0.5)
+        
+        -- V2 POSITION (you can adjust these independently)
+        local V2BaseX = math.floor(ViewportX / 2 + 0.6)  -- center
+        local V2BaseY = math.floor(ViewportY - 210 + 0.1)  -- near bottom
+        
+        if PanelVersion == "Legacy" then
+            -- LEGACY PANEL LAYOUT
+            local DistanceColor = ColorsCfg["Distance"] or Color3.new(0, 255, 255)
+            local DC = DistanceColor
+            local StatusEnabled = PanelCfg["Status"] == true
+            local DistanceEnabled = PanelCfg["Distance"] == true
+            
+            local distanceStatus = "(N/A)"
+            local walkSpeedStatusLegacy = "(N/A)"
+            
+            if localChar then
+                local localHumanoid = localChar:FindFirstChildOfClass("Humanoid")
+                if localHumanoid then
+                    local ws = localHumanoid.WalkSpeed
+                    local defaultWalkSpeed = 16
+                    if ws and ws > defaultWalkSpeed + 0.5 then
+                        walkSpeedStatusLegacy = "(Active)"
+                    else
+                        walkSpeedStatusLegacy = "(N/A)"
+                    end
                 end
             end
             
-            if DistanceEnabled then
-                local root = char:FindFirstChild("HumanoidRootPart")
-                if root then
+            if primaryTarget and primaryTarget.Parent and primaryTarget.Character then
+                local root = primaryTarget.Character:FindFirstChild("HumanoidRootPart")
+                if root and DistanceEnabled then
                     local dist = (Camera.CFrame.Position - root.Position).Magnitude
                     distanceStatus = "(" .. string.format("%.1f", dist) .. " studs)"
                 end
             end
-        end
-        
-        local BaseX, BaseY
-        
-        if StatusEnabled then
-            if DistanceEnabled then
-                BaseX = math.floor(ViewportX / 2 + 0.6)
-                BaseY = math.floor(ViewportY - 230 + 0.5)
+            
+            -- adjust legacy baseY based on enabled features
+            if StatusEnabled then
+                if DistanceEnabled then
+                    LegacyBaseY = math.floor(ViewportY - 230 + 0.5)
+                else
+                    LegacyBaseY = math.floor(ViewportY - 212 + 0.5)
+                end
             else
-                BaseX = math.floor(ViewportX / 2 + 0.6)
-                BaseY = math.floor(ViewportY - 212 + 0.5)
+                if DistanceEnabled then
+                    LegacyBaseY = math.floor(ViewportY - 208 + 0.5)
+                else
+                    LegacyBaseY = math.floor(ViewportY - 190 + 0.5)
+                end
             end
-        else
+            
+            PanelTitle.Text = string.format('<font color="rgb(%d,%d,%d)">Scare</font><font color="rgb(%d,%d,%d)">.</font><font color="rgb(%d,%d,%d)">%s</font>',
+                math.floor(PC.R*255), math.floor(PC.G*255), math.floor(PC.B*255),
+                math.floor(DotColor.R*255), math.floor(DotColor.G*255), math.floor(DotColor.B*255),
+                math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255), AliasStr)
+            PanelTitle.Size = 16
+            PanelTitle.Position = Vector2.new(LegacyBaseX, LegacyBaseY)
+            PanelTitle.Visible = true
+
+            local OffsetY = LegacyBaseY + 20
+            local LabelIdx = 0
+
+            if StatusEnabled then
+                LabelIdx = LabelIdx + 1
+                local L = PanelLabels[LabelIdx]
+                if L then
+                    L.Text = string.format('(<font color="rgb(%d,%d,%d)">%s</font> : <font color="rgb(%d,%d,%d)">%s</font>)',
+                        math.floor(HealthColor.R*255), math.floor(HealthColor.G*255), math.floor(HealthColor.B*255), healthValue,
+                        math.floor(ArmorColor.R*255), math.floor(ArmorColor.G*255), math.floor(ArmorColor.B*255), armorValue)
+                    L.Color = Color3.new(1,1,1)
+                    L.Size = 14
+                    L.Position = Vector2.new(LegacyBaseX, OffsetY)
+                    L.Visible = true
+                    OffsetY = OffsetY + 18
+                end
+            end
+            
             if DistanceEnabled then
-                BaseX = math.floor(ViewportX / 2 + 0.6)
-                BaseY = math.floor(ViewportY - 208 + 0.5)
-            else
-                BaseX = math.floor(ViewportX / 2 + 0.6)
-                BaseY = math.floor(ViewportY - 190 + 0.5)
+                LabelIdx = LabelIdx + 1
+                local L = PanelLabels[LabelIdx]
+                if L then
+                    L.Text = string.format('Distance <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">%s</font>',
+                        math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
+                        math.floor(DC.R*255), math.floor(DC.G*255), math.floor(DC.B*255),
+                        distanceStatus)
+                    L.Color = Color3.new(1,1,1)
+                    L.Size = 14
+                    L.Position = Vector2.new(LegacyBaseX, OffsetY)
+                    L.Visible = true
+                    OffsetY = OffsetY + 18
+                end
             end
-        end
 
-        local PC = PanelColor
-        local FC = FeatureColor
-        local DC = DistanceColor
-        local DotColor = Color3.new(0.35,0.35,0.35)
-        
-        PanelTitle.Text = string.format('<font color="rgb(%d,%d,%d)">Scare</font><font color="rgb(%d,%d,%d)">.</font><font color="rgb(%d,%d,%d)">%s</font>',
-            math.floor(PC.R*255), math.floor(PC.G*255), math.floor(PC.B*255),
-            math.floor(DotColor.R*255), math.floor(DotColor.G*255), math.floor(DotColor.B*255),
-            math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255), AliasStr)
-        PanelTitle.Size = 16
-        PanelTitle.Position = Vector2.new(BaseX, BaseY)
-        PanelTitle.Visible = true
-
-        local OffsetY = BaseY + 20
-        local LabelIdx = 0
-
-        if StatusEnabled then
             LabelIdx = LabelIdx + 1
             local L = PanelLabels[LabelIdx]
             if L then
-                L.Text = string.format('(<font color="rgb(%d,%d,%d)">%s</font> : <font color="rgb(%d,%d,%d)">%s</font>)',
-                    math.floor(HealthColor.R*255), math.floor(HealthColor.G*255), math.floor(HealthColor.B*255), healthValue,
-                    math.floor(ArmorColor.R*255), math.floor(ArmorColor.G*255), math.floor(ArmorColor.B*255), armorValue)
-                L.Color = Color3.new(1,1,1)
-                L.Size = 14
-                L.Position = Vector2.new(BaseX, OffsetY)
-                L.Visible = true
-                OffsetY = OffsetY + 18
-            end
-        end
-        
-        if DistanceEnabled then
-            LabelIdx = LabelIdx + 1
-            local L = PanelLabels[LabelIdx]
-            if L then
-                L.Text = string.format('Distance <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">%s</font>',
+                L.Text = string.format('Silent Aim <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">(%s)</font>',
                     math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
-                    math.floor(DC.R*255), math.floor(DC.G*255), math.floor(DC.B*255),
-                    distanceStatus)
+                    math.floor(CurrentColor.R*255), math.floor(CurrentColor.G*255), math.floor(CurrentColor.B*255),
+                    silentName)
                 L.Color = Color3.new(1,1,1)
                 L.Size = 14
-                L.Position = Vector2.new(BaseX, OffsetY)
+                L.Position = Vector2.new(LegacyBaseX, OffsetY)
                 L.Visible = true
                 OffsetY = OffsetY + 18
             end
-        end
 
-        LabelIdx = LabelIdx + 1
-        local L = PanelLabels[LabelIdx]
-        if L then
-            L.Text = string.format('Silent Aim <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">(%s)</font>',
-                math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
-                math.floor(CurrentColor.R*255), math.floor(CurrentColor.G*255), math.floor(CurrentColor.B*255),
-                silentName)
-            L.Color = Color3.new(1,1,1)
-            L.Size = 14
-            L.Position = Vector2.new(BaseX, OffsetY)
-            L.Visible = true
-            OffsetY = OffsetY + 18
-        end
+            LabelIdx = LabelIdx + 1
+            local L2 = PanelLabels[LabelIdx]
+            if L2 then
+                L2.Text = string.format('Trigger Bot <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">(%s)</font>',
+                    math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
+                    math.floor(CurrentColor.R*255), math.floor(CurrentColor.G*255), math.floor(CurrentColor.B*255),
+                    triggerName)
+                L2.Color = Color3.new(1,1,1)
+                L2.Size = 14
+                L2.Position = Vector2.new(LegacyBaseX, OffsetY)
+                L2.Visible = true
+                OffsetY = OffsetY + 18
+            end
 
-        LabelIdx = LabelIdx + 1
-        local L2 = PanelLabels[LabelIdx]
-        if L2 then
-            L2.Text = string.format('Trigger Bot <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">(%s)</font>',
-                math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
-                math.floor(CurrentColor.R*255), math.floor(CurrentColor.G*255), math.floor(CurrentColor.B*255),
-                triggerName)
-            L2.Color = Color3.new(1,1,1)
-            L2.Size = 14
-            L2.Position = Vector2.new(BaseX, OffsetY)
-            L2.Visible = true
-            OffsetY = OffsetY + 18
-        end
+            LabelIdx = LabelIdx + 1
+            local L3 = PanelLabels[LabelIdx]
+            if L3 then
+                L3.Text = string.format('Aim Assist <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">(%s)</font>',
+                    math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
+                    math.floor(CurrentColor.R*255), math.floor(CurrentColor.G*255), math.floor(CurrentColor.B*255),
+                    cameraName)
+                L3.Color = Color3.new(1,1,1)
+                L3.Size = 14
+                L3.Position = Vector2.new(LegacyBaseX, OffsetY)
+                L3.Visible = true
+                OffsetY = OffsetY + 18
+            end
 
-        LabelIdx = LabelIdx + 1
-        local L3 = PanelLabels[LabelIdx]
-        if L3 then
-            L3.Text = string.format('Camera Aim <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">(%s)</font>',
-                math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
-                math.floor(CurrentColor.R*255), math.floor(CurrentColor.G*255), math.floor(CurrentColor.B*255),
-                cameraName)
-            L3.Color = Color3.new(1,1,1)
-            L3.Size = 14
-            L3.Position = Vector2.new(BaseX, OffsetY)
-            L3.Visible = true
-            OffsetY = OffsetY + 18
-        end
+            LabelIdx = LabelIdx + 1
+            local L4 = PanelLabels[LabelIdx]
+            if L4 then
+                L4.Text = string.format('SpeedWalk <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">%s</font>',
+                    math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
+                    math.floor(CurrentColor.R*255), math.floor(CurrentColor.G*255), math.floor(CurrentColor.B*255),
+                    walkSpeedStatusLegacy)
+                L4.Color = Color3.new(1,1,1)
+                L4.Size = 14
+                L4.Position = Vector2.new(LegacyBaseX, OffsetY)
+                L4.Visible = true
+                OffsetY = OffsetY + 18
+            end
 
-        LabelIdx = LabelIdx + 1
-        local L4 = PanelLabels[LabelIdx]
-        if L4 then
-            L4.Text = string.format('SpeedWalk <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">%s</font>',
-                math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
-                math.floor(CurrentColor.R*255), math.floor(CurrentColor.G*255), math.floor(CurrentColor.B*255),
-                walkSpeedStatus)
-            L4.Color = Color3.new(1,1,1)
-            L4.Size = 14
-            L4.Position = Vector2.new(BaseX, OffsetY)
-            L4.Visible = true
-            OffsetY = OffsetY + 18
-        end
+            for i = LabelIdx + 1, #PanelLabels do
+                if PanelLabels[i].Visible then PanelLabels[i].Visible = false end
+            end
+            PanelVis = true
+            
+        else
+            -- V2 PANEL LAYOUT (using V2BaseX and V2BaseY)
+            
+            -- Alias line (top)
+            PanelTitle.Text = string.format('<font color="rgb(%d,%d,%d)">Scare</font><font color="rgb(%d,%d,%d)">.</font><font color="rgb(%d,%d,%d)">%s</font>',
+                math.floor(PC.R*255), math.floor(PC.G*255), math.floor(PC.B*255),
+                math.floor(DotColor.R*255), math.floor(DotColor.G*255), math.floor(DotColor.B*255),
+                math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255), AliasStr)
+            PanelTitle.Size = 16
+            PanelTitle.Position = Vector2.new(V2BaseX, V2BaseY)
+            PanelTitle.Visible = true
 
-        for i = LabelIdx + 1, #PanelLabels do
-            if PanelLabels[i].Visible then PanelLabels[i].Visible = false end
+            local OffsetY = V2BaseY + 20
+            local LabelIdx = 0
+
+            -- Silent Aim line (On/Off)
+            LabelIdx = LabelIdx + 1
+            local L = PanelLabels[LabelIdx]
+            if L then
+                local silentStatus = "Off"
+                if State.SilentTargetLocked and silentTarget and silentTarget.Parent then
+                    silentStatus = "On"
+                end
+                local statusColor = (silentStatus == "On") and CurrentColor or FC
+                L.Text = string.format('Silent Aim <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">%s</font>',
+                    math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
+                    math.floor(statusColor.R*255), math.floor(statusColor.G*255), math.floor(statusColor.B*255),
+                    silentStatus)
+                L.Color = Color3.new(1,1,1)
+                L.Size = 14
+                L.Position = Vector2.new(V2BaseX, OffsetY)
+                L.Visible = true
+                OffsetY = OffsetY + 18
+            end
+
+            -- Trigger Bot line (On/Off)
+            LabelIdx = LabelIdx + 1
+            local L2 = PanelLabels[LabelIdx]
+            if L2 then
+                local triggerStatus = "Off"
+                if State.TriggerTargetLocked and triggerTarget and triggerTarget.Parent then
+                    triggerStatus = "On"
+                end
+                local statusColor = (triggerStatus == "On") and CurrentColor or FC
+                L2.Text = string.format('Trigger Bot <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">%s</font>',
+                    math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
+                    math.floor(statusColor.R*255), math.floor(statusColor.G*255), math.floor(statusColor.B*255),
+                    triggerStatus)
+                L2.Color = Color3.new(1,1,1)
+                L2.Size = 14
+                L2.Position = Vector2.new(V2BaseX, OffsetY)
+                L2.Visible = true
+                OffsetY = OffsetY + 18
+            end
+
+            -- Aim Assist line (On/Off)
+            LabelIdx = LabelIdx + 1
+            local L3 = PanelLabels[LabelIdx]
+            if L3 then
+                local cameraStatus = "Off"
+                if State.CameraTargetLocked and cameraTarget and cameraTarget.Parent then
+                    cameraStatus = "On"
+                end
+                local statusColor = (cameraStatus == "On") and CurrentColor or FC
+                L3.Text = string.format('Aim Assist <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">%s</font>',
+                    math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
+                    math.floor(statusColor.R*255), math.floor(statusColor.G*255), math.floor(statusColor.B*255),
+                    cameraStatus)
+                L3.Color = Color3.new(1,1,1)
+                L3.Size = 14
+                L3.Position = Vector2.new(V2BaseX, OffsetY)
+                L3.Visible = true
+                OffsetY = OffsetY + 18
+            end
+
+            -- Speedwalk line (On/Off)
+            LabelIdx = LabelIdx + 1
+            local L4 = PanelLabels[LabelIdx]
+            if L4 then
+                local speedColor = (walkSpeedStatus == "On") and CurrentColor or FC
+                L4.Text = string.format('Speedwalk <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">%s</font>',
+                    math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
+                    math.floor(speedColor.R*255), math.floor(speedColor.G*255), math.floor(speedColor.B*255),
+                    walkSpeedStatus)
+                L4.Color = Color3.new(1,1,1)
+                L4.Size = 14
+                L4.Position = Vector2.new(V2BaseX, OffsetY)
+                L4.Visible = true
+                OffsetY = OffsetY + 18
+            end
+
+            -- Target line (bottom) with (PlayerName) (Health : Armor) OR (Forcefield) and (Distance)
+            LabelIdx = LabelIdx + 1
+            local L5 = PanelLabels[LabelIdx]
+            if L5 then
+                local targetText = string.format('Target <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">(%s)</font>',
+                    math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
+                    math.floor(CurrentColor.R*255), math.floor(CurrentColor.G*255), math.floor(CurrentColor.B*255),
+                    targetDisplayName)
+                
+                -- Status: (Forcefield) if has forcefield, otherwise (Health : Armor)
+                if hasForceField then
+                    targetText = targetText .. string.format(' <font color="rgb(%d,%d,%d)">(</font><font color="rgb(%d,%d,%d)">%s</font><font color="rgb(%d,%d,%d)">)</font>',
+                        math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
+                        math.floor(CurrentColor.R*255), math.floor(CurrentColor.G*255), math.floor(CurrentColor.B*255),
+                        "Forcefield",
+                        math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255))
+                else
+                    targetText = targetText .. string.format(' <font color="rgb(%d,%d,%d)">(</font><font color="rgb(%d,%d,%d)">%s</font><font color="rgb(%d,%d,%d)"> : </font><font color="rgb(%d,%d,%d)">%s</font><font color="rgb(%d,%d,%d)">)</font>',
+                        math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
+                        math.floor(HealthColor.R*255), math.floor(HealthColor.G*255), math.floor(HealthColor.B*255), healthValue,
+                        math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
+                        math.floor(ArmorColor.R*255), math.floor(ArmorColor.G*255), math.floor(ArmorColor.B*255), armorValue,
+                        math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255))
+                end
+                
+                -- Distance in parentheses (studs)
+                if targetDistance ~= "" then
+                    targetText = targetText .. string.format(' <font color="rgb(%d,%d,%d)">(</font><font color="rgb(%d,%d,%d)">%s</font><font color="rgb(%d,%d,%d)">)</font>',
+                        math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
+                        math.floor(ArmorColor.R*255), math.floor(ArmorColor.G*255), math.floor(ArmorColor.B*255),
+                        targetDistance,
+                        math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255))
+                end
+                
+                L5.Text = targetText
+                L5.Color = Color3.new(1,1,1)
+                L5.Size = 14
+                L5.Position = Vector2.new(V2BaseX, OffsetY)
+                L5.Visible = true
+                OffsetY = OffsetY + 18
+            end
+
+            for i = LabelIdx + 1, #PanelLabels do
+                if PanelLabels[i].Visible then PanelLabels[i].Visible = false end
+            end
+            PanelVis = true
         end
-        PanelVis = true
     end
     
     if PanelVis ~= LastFrame.PanelVisible then
