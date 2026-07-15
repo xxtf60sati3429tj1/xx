@@ -326,13 +326,6 @@ end
 
 script_key = shared.Scare.Auth.Key
 
-if LRM_INIT_SCRIPT then
-    LRM_INIT_SCRIPT(function()
-        -- this is redundant now but keep it for compatibility
-        script_key = shared.Scare.Auth.Key
-    end)
-end
-
 local function IsSameCrew(Player)
     local LocalCrew = LocalPlayer:GetAttribute("CrewName")
     local TargetCrew = Player:GetAttribute("CrewName")
