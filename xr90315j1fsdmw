@@ -386,6 +386,15 @@ local function HasForcefieldOrInvis(Player)
     return false
 end
 
+-- helper function specifically for forcefield check in triggerbot
+local function HasForceField(Player)
+    if not Player or not Player.Character then return false end
+    if Player.Character:FindFirstChild("ForceField") or Player.Character:FindFirstChildOfClass("ForceField") then
+        return true
+    end
+    return false
+end
+
 local function IsInVehicle(Player)
     local Character = Player and Player.Character
     local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
@@ -524,6 +533,10 @@ local state = {
     delayChildConnections = {},
     emoteSpooferEnabled = false,
     avatarModificationsApplied = false,
+    hopsConnection = nil,
+    hopsMonitor = nil,
+    hopsHumanoid = nil,
+    doubleTapConnections = {},
 }
 
 local player = LocalPlayer
@@ -678,10 +691,7 @@ end
 local function ApplyHeadless(Character)
     local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
     if not AvatarCfg then return end
-    local Config = AvatarCfg['Configuration']
-    if not Config then return end
-    local HeadlessSettings = Config['Headless']
-    if not HeadlessSettings then return end
+    if not AvatarCfg['Headless'] then return end
     
     Character:WaitForChild("Head", 5)
     MakeHeadless(Character)
@@ -699,10 +709,7 @@ end
 local function ApplyKorblox(Character)
     local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
     if not AvatarCfg then return end
-    local Config = AvatarCfg['Configuration']
-    if not Config then return end
-    local KorbloxSettings = Config['Korblox']
-    if not KorbloxSettings then return end
+    if not AvatarCfg['Korblox'] then return end
     if not Character then return end
 
     local RightUpperLeg = Character:FindFirstChild("RightUpperLeg")
@@ -734,13 +741,7 @@ end
 local function ApplySkinny(Character)
     local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
     if not AvatarCfg then return end
-    local Config = AvatarCfg['Configuration']
-    if not Config then return end
-    
-    local Width = Config['Width'] or 0.5
-    local Height = Config['Height'] or 1.0
-    
-    if Width == 0.5 and Height == 1.0 then return end
+    if not AvatarCfg['Skinny'] then return end
     
     local function scalePart(part)
         if not part then return end
@@ -750,7 +751,7 @@ local function ApplySkinny(Character)
             scale.Name = "Scale"
             scale.Parent = part
         end
-        scale.Value = Vector3.new(Width, Height, Width)
+        scale.Value = Vector3.new(0.5, 1.0, 0.5)
     end
     
     local parts = {
@@ -766,14 +767,12 @@ local function ApplySkinny(Character)
     end
 end
 
+-- animation spoofer
 local function ApplyAnimationSpoofer(Character)
     local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
     if not AvatarCfg then return end
     local AnimSpoofer = AvatarCfg['Animation Spoofer']
-    if not AnimSpoofer then return end
-    
-    local AnimEnabled = AnimSpoofer['Enabled']
-    if not AnimEnabled then return end
+    if not AnimSpoofer or not AnimSpoofer['Enabled'] then return end
     
     local AnimPkg = {
         Idle1 = nil, Idle2 = nil, Walk = nil, Run = nil,
@@ -811,6 +810,7 @@ local function ApplyAnimationSpoofer(Character)
     SetAnimations(Character, AnimPkg)
 end
 
+-- emote spoofer
 local function ApplyEmoteSpoofer(Character)
     local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
     if not AvatarCfg then return end
@@ -859,6 +859,7 @@ local function ApplyEmoteSpoofer(Character)
     state.emoteSpooferEnabled = true
 end
 
+-- avatar spoofer
 local function ApplyAvatarSpoofer(Character)
     local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
     if not AvatarCfg then return end
@@ -881,15 +882,12 @@ local function ApplyAvatarSpoofer(Character)
     end
 end
 
+-- delay modification
 local function SetupDelayModifications(Character)
     if not Character then return end
     
     local DelayCfg = shared.Scare and shared.Scare['Delay Modification']
-    if not DelayCfg then return end
-    local Config = DelayCfg['Configuration']
-    if not Config or not Config['Enabled'] then return end
-    
-    local Delay = 0
+    if not DelayCfg or not DelayCfg['Enabled'] then return end
     
     local function ApplyDelay(Tool)
         if not Tool:IsA("Tool") then return end
@@ -898,7 +896,7 @@ local function SetupDelayModifications(Character)
             for i = 1, Info.nups do
                 local c, n = debug.getupvalue(Connection.Function, i)
                 if type(c) == "number" then 
-                    debug.setupvalue(Connection.Function, i, Delay)
+                    debug.setupvalue(Connection.Function, i, 0)
                 end
             end
         end
@@ -954,6 +952,7 @@ local function CleanupAvatarHandlers()
     state.delayChildConnections = {}
 end
 
+-- jump power
 local function ApplyJumpPower(Character)
     if not Character then return end
     
@@ -961,8 +960,7 @@ local function ApplyJumpPower(Character)
     if not Humanoid then return end
     
     local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
-    if not JumpSettings then return end
-    if not JumpSettings['Enabled'] then return end
+    if not JumpSettings or not JumpSettings['Enabled'] then return end
     
     local percent = JumpSettings['Percent'] or 100
     local newJumpPower = 50 * (percent / 100)
@@ -984,6 +982,7 @@ local function SetupJumpPower()
     end)
 end
 
+-- no jump cooldown
 local function SetupNoJumpCooldown()
     local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
     if not JumpSettings or not JumpSettings['No Jump Cooldown'] then return end
@@ -1015,6 +1014,7 @@ local function SetupNoJumpCooldown()
     LocalPlayer.CharacterAdded:Connect(HandleCooldown)
 end
 
+-- walljump
 local function SetupWalljump()
     local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
     if not JumpSettings then return end
@@ -1123,6 +1123,7 @@ local function SetupWalljump()
     end)
 end
 
+-- jump features
 local function SetupJumpFeatures()
     SetupJumpPower()
     SetupNoJumpCooldown()
@@ -1148,28 +1149,21 @@ local function SetupHops()
     local jumpPower = 50 * (percent / 100)
     jumpPower = math.clamp(jumpPower, 1, 1000)
     
-    local userInputService = game:GetService("UserInputService")
-    local player = game.Players.LocalPlayer
-    local activeConnection = nil
-    local activeMonitor = nil
-    local activeHumanoid = nil
-    local activeOriginalPower = 50
-
-    local function CleanupJump()
-        if activeConnection then
-            activeConnection:Disconnect()
-            activeConnection = nil
+    local function CleanupHops()
+        if state.hopsConnection then
+            state.hopsConnection:Disconnect()
+            state.hopsConnection = nil
         end
-        if activeMonitor then
-            activeMonitor = nil
+        if state.hopsMonitor then
+            state.hopsMonitor = nil
         end
-        activeHumanoid = nil
+        state.hopsHumanoid = nil
     end
 
-    local function SetupJump(character)
+    local function SetupHopsForCharacter(character)
         if not character then return end
         
-        CleanupJump()
+        CleanupHops()
         
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         if not humanoid then
@@ -1177,55 +1171,202 @@ local function SetupHops()
             if not humanoid then return end
         end
         
-        activeHumanoid = humanoid
-        activeOriginalPower = humanoid.JumpPower
+        state.hopsHumanoid = humanoid
+        local originalJumpPower = humanoid.JumpPower
         
-        activeConnection = userInputService.InputBegan:Connect(function(input, gameProcessed)
+        state.hopsConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
             if gameProcessed then return end
             if input.KeyCode == Enum.KeyCode.Space then
-                if not activeHumanoid or not activeHumanoid.Parent then return end
+                if not state.hopsHumanoid or not state.hopsHumanoid.Parent then return end
                 
-                activeHumanoid.JumpPower = jumpPower
+                state.hopsHumanoid.JumpPower = jumpPower
                 
                 local success = pcall(function()
-                    activeHumanoid:Jump()
+                    state.hopsHumanoid:Jump()
                 end)
                 
                 if not success then
                     pcall(function()
-                        activeHumanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                        state.hopsHumanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                     end)
                 end
                 
-                task.wait()
-                if activeHumanoid and activeHumanoid.Parent then
-                    activeHumanoid.JumpPower = activeOriginalPower
+                task.wait(0.05)
+                if state.hopsHumanoid and state.hopsHumanoid.Parent then
+                    state.hopsHumanoid.JumpPower = originalJumpPower
                 end
             end
         end)
         
-        activeMonitor = task.spawn(function()
-            while activeHumanoid and activeHumanoid.Parent do
+        state.hopsMonitor = task.spawn(function()
+            while state.hopsHumanoid and state.hopsHumanoid.Parent do
                 task.wait(0.1)
-                if activeHumanoid.JumpPower ~= activeOriginalPower and activeHumanoid.JumpPower ~= jumpPower then
-                    activeOriginalPower = activeHumanoid.JumpPower
+                if state.hopsHumanoid.JumpPower ~= originalJumpPower and state.hopsHumanoid.JumpPower ~= jumpPower then
+                    originalJumpPower = state.hopsHumanoid.JumpPower
                 end
             end
         end)
     end
 
-    local character = player.Character or player.CharacterAdded:Wait()
-    SetupJump(character)
+    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    SetupHopsForCharacter(character)
 
-    player.CharacterAdded:Connect(function(newChar)
+    LocalPlayer.CharacterAdded:Connect(function(newChar)
         newChar:WaitForChild("Humanoid", 5)
         task.wait(0.1)
-        SetupJump(newChar)
+        SetupHopsForCharacter(newChar)
     end)
 end
 
 SetupHops()
 
+-- double tap
+local function SetupDoubleTap()
+    local Config = shared.Scare
+    if not Config then return end
+    
+    local DoubleTapCfg = Config['Double Tap']
+    if not DoubleTapCfg or not DoubleTapCfg['Enabled'] then return end
+    
+    local DoubleTapWeapons = DoubleTapCfg['Weapons'] or {}
+    
+    if #DoubleTapWeapons == 0 then return end
+    
+    local function HookGunDoubleTap(Character)
+        if not Character then return end
+        
+        local function ProcessTool(Tool)
+            if not Tool:IsA("Tool") then return end
+            
+            local ToolName = Tool.Name
+            local IsDoubleTapWeapon = false
+            for _, WeaponName in pairs(DoubleTapWeapons) do
+                if ToolName == WeaponName then
+                    IsDoubleTapWeapon = true
+                    break
+                end
+            end
+            if not IsDoubleTapWeapon then return end
+            
+            if Tool:GetAttribute("ScareDoubleTap") then return end
+            Tool:SetAttribute("ScareDoubleTap", true)
+            
+            local LastFire = 0
+            local Cooldown = 0.3
+            
+            local function GetCooldown()
+                local CD = Tool:FindFirstChild("ShootingCooldown")
+                if CD then return CD.Value end
+                return 0.3
+            end
+            
+            Cooldown = GetCooldown()
+            
+            local DoubleTapConnection = Tool.Activated:Connect(function()
+                local CurrentTime = tick()
+                if CurrentTime - LastFire < Cooldown + 0.01 then return end
+                LastFire = CurrentTime
+                
+                local Character = LocalPlayer.Character
+                if not Character then return end
+                
+                local Handle = Tool:FindFirstChild("Handle")
+                if not Handle then return end
+                
+                local Ammo = Tool:FindFirstChild("Ammo")
+                if not Ammo or Ammo.Value <= 0 then return end
+                
+                local function FireWeapon()
+                    if not Tool or not Tool.Parent then return end
+                    
+                    local Success = false
+                    pcall(function()
+                        if Tool.Activate then
+                            Tool:Activate()
+                            Success = true
+                        end
+                    end)
+                    if not Success then
+                        pcall(function()
+                            local RemoteEvent = Tool:FindFirstChild("RemoteEvent")
+                            if RemoteEvent and RemoteEvent:IsA("RemoteEvent") then
+                                RemoteEvent:FireServer("Shoot")
+                                Success = true
+                            end
+                        end)
+                    end
+                    if not Success then
+                        pcall(function()
+                            local Fire = Tool:FindFirstChild("Fire")
+                            if Fire and Fire:IsA("RemoteEvent") then
+                                Fire:FireServer()
+                                Success = true
+                            end
+                        end)
+                    end
+                    if not Success then
+                        pcall(function()
+                            local Shoot = Tool:FindFirstChild("Shoot")
+                            if Shoot and Shoot:IsA("RemoteEvent") then
+                                Shoot:FireServer()
+                                Success = true
+                            end
+                        end)
+                    end
+                end
+                
+                FireWeapon()
+                
+                local DelayTime = 0.075
+                task.wait(DelayTime)
+                
+                if Tool and Tool.Parent and Ammo and Ammo.Value > 0 then
+                    FireWeapon()
+                end
+            end)
+            
+            table.insert(state.doubleTapConnections, DoubleTapConnection)
+            
+            Tool.AncestryChanged:Connect(function()
+                if not Tool.Parent or not Tool.Parent:IsA("Model") then
+                    for i, conn in pairs(state.doubleTapConnections) do
+                        if conn == DoubleTapConnection then
+                            pcall(function() conn:Disconnect() end)
+                            state.doubleTapConnections[i] = nil
+                            break
+                        end
+                    end
+                end
+            end)
+        end
+        
+        local function ScanTools()
+            for _, Child in pairs(Character:GetChildren()) do
+                if Child:IsA("Tool") then
+                    ProcessTool(Child)
+                end
+            end
+        end
+        
+        ScanTools()
+        
+        Character.ChildAdded:Connect(function(Child)
+            if Child:IsA("Tool") then
+                task.wait(0.1)
+                ProcessTool(Child)
+            end
+        end)
+    end
+    
+    if LocalPlayer.Character then
+        HookGunDoubleTap(LocalPlayer.Character)
+    end
+    LocalPlayer.CharacterAdded:Connect(HookGunDoubleTap)
+end
+
+SetupDoubleTap()
+
+-- anti stomp
 local function SetupAntiStomp()
     local PanicSystem = shared.Scare and shared.Scare['Panic System']
     if not PanicSystem or not PanicSystem['Anti Stomp'] then return end
@@ -1280,6 +1421,7 @@ local function SetupAntiStomp()
     state.antiStompConnection = LocalPlayer.CharacterAdded:Connect(HandleAntiStomp)
 end
 
+-- panic ground
 local function SetupPanicGround()
     local PanicSystem = shared.Scare and shared.Scare['Panic System']
     if not PanicSystem then return end
@@ -1317,6 +1459,7 @@ local function SetupPanicGround()
     end)
 end
 
+-- auto reset
 local function SetupAutoReset()
     local PanicSystem = shared.Scare and shared.Scare['Panic System']
     if not PanicSystem then return end
@@ -1341,6 +1484,7 @@ local function SetupAutoReset()
     end)
 end
 
+-- anti fall
 local function SetupAntiFall(Character)
     if not Character then return end
     local Humanoid = Character:FindFirstChildOfClass('Humanoid') or Character:WaitForChild('Humanoid', 10)
@@ -1395,14 +1539,13 @@ end
 
 SetupAvatarHandlers()
 
+-- inventory sorter
 local function SetupInventorySorter()
     local Config = shared.Scare
     if not Config then return end
     
     local SorterCfg = Config["Inventory Sorter"]
-    if not SorterCfg then return end
-    
-    if not SorterCfg["Enabled"] then return end
+    if not SorterCfg or not SorterCfg["Enabled"] then return end
     
     local keybind = SorterCfg["Keybind"]
     if not keybind then return end
@@ -1411,9 +1554,7 @@ local function SetupInventorySorter()
         RunService.RenderStepped:Wait()
         local temp = {}
         
-        if not LocalPlayer.Backpack then
-            return
-        end
+        if not LocalPlayer.Backpack then return end
         
         for i = 1, #LocalPlayer.Backpack:GetChildren() do
             local tool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
@@ -1456,9 +1597,7 @@ local function SetupInventorySorter()
     
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
-        
         if not SorterCfg["Enabled"] then return end
-        
         if input.KeyCode == Enum.KeyCode[keybind] then
             task.spawn(SortInventory)
         end
@@ -1467,6 +1606,7 @@ end
 
 SetupInventorySorter()
 
+-- skin changer (da hood)
 local DaHoodPlaceId = {
     [2788229376] = true,
 }
@@ -1485,7 +1625,7 @@ if DaHoodPlaceId[game.PlaceId] then
         shared.ScareSkinData = {}
     end
 
-    local skinChanger = shared.Scare and shared.Scare['Skin Changer'] and shared.Scare['Skin Changer']['Configuration']
+    local skinChanger = shared.Scare and shared.Scare['Skin Changer']
 
     if skinChanger and skinChanger['Enabled'] then
         for weapon, skin in pairs(skinChanger) do
@@ -1956,8 +2096,25 @@ local function CleanupFOVBoxes()
     end
 end
 
+-- full cleanup
 local function FullCleanup()
     CleanupAvatarHandlers()
+    
+    -- clean up hops
+    if state.hopsConnection then
+        pcall(function() state.hopsConnection:Disconnect() end)
+        state.hopsConnection = nil
+    end
+    if state.hopsMonitor then
+        state.hopsMonitor = nil
+    end
+    state.hopsHumanoid = nil
+    
+    -- clean up double tap
+    for _, conn in pairs(state.doubleTapConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    state.doubleTapConnections = {}
     
     local connections = {}
     for _, service in pairs({RunService, UserInputService, Players}) do
@@ -2143,6 +2300,10 @@ local function FullCleanup()
     state.antiStompKOConnection = nil
     state.emoteSpooferEnabled = false
     state.avatarModificationsApplied = false
+    state.hopsConnection = nil
+    state.hopsMonitor = nil
+    state.hopsHumanoid = nil
+    state.doubleTapConnections = {}
     
     for _, conn in pairs(state.delayConnections) do
         pcall(function() conn:Disconnect() end)
@@ -2364,6 +2525,7 @@ local function getClosestPoint(character, cfgOverride)
     return nil
 end
 
+-- movement modifications
 local function SetupMovementModifications()
     local uis = UserInputService
     local isSpeedEnabled = false
@@ -2385,13 +2547,9 @@ local function SetupMovementModifications()
         
         local CurrentState = "Normal"
         
-        -- only switch to low health if health is below 30%
         if Humanoid.Health / Humanoid.MaxHealth < 0.3 then
             CurrentState = "Low Health"
         end
-        
-        -- removed weapon-specific detection – always use "Normal" for any tool
-        -- your Core table only has Normal, Shooting, Reloading, and Low Health keys
         
         local Multiplier = 1
         local StateConfig = MovementCfg[CurrentState]
@@ -2561,6 +2719,7 @@ for _, Player in pairs(Players:GetPlayers()) do
     end
 end
 
+-- validate target
 local function ValidateTarget(mode)
     if mode == "Silent" then
         if not State.SilentTargetLocked then return end
@@ -2691,6 +2850,7 @@ if GunHandler then
     OriginalGetAim = GunHandler.getAim
 end
 
+-- silent aim hook
 if GunHandler and OriginalGetAim then
     GunHandler.getAim = function(origin, range)
         local Config = shared.Scare
@@ -2800,6 +2960,7 @@ if GunHandler and OriginalGetAim then
     end
 end
 
+-- input began
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
@@ -2836,7 +2997,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         end
     end
     
-    -- safety system (replaces uninject)
     local SafetySystem = Settings['Safety System']
     if not SafetySystem then return end
     local safetyEnabled = SafetySystem['Enabled']
@@ -3096,6 +3256,7 @@ local function IsSeparateKeybindsEnabled()
     return separate and separate['Enabled'] == true
 end
 
+-- handle shared key
 local function HandleSharedKey(input, processed)
     if processed then return end
     
@@ -3207,7 +3368,6 @@ local function HandleSharedKey(input, processed)
         return
     end
     
-    -- multiple modes active
     local allLocked = State.SilentTargetLocked or State.TriggerTargetLocked or State.CameraTargetLocked
     
     if allLocked then
@@ -3278,6 +3438,7 @@ local function HandleSharedKey(input, processed)
     end
 end
 
+-- handle trigger key
 local function HandleTriggerKey(input, processed)
     if processed then return end
     
@@ -3331,6 +3492,7 @@ local function HandleTriggerKey(input, processed)
     end
 end
 
+-- handle silent key
 local function HandleSilentKey(input, processed)
     if processed then return end
     
@@ -3379,6 +3541,7 @@ local function HandleSilentKey(input, processed)
     end
 end
 
+-- handle camera key
 local function HandleCameraKey(input, processed)
     if processed then return end
     
@@ -3588,6 +3751,7 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
+-- update camera fov
 local function UpdateCameraFOV()
     local Config = shared.Scare
     local CameraCfg = Config and Config["Camera Aimbot"]
@@ -3672,6 +3836,7 @@ local function UpdateCameraFOV()
     end
 end
 
+-- update trigger fov
 local function UpdateTriggerFOV()
     local Config = shared.Scare
     local TriggerCfg = Config and Config["Trigger Bot"]
@@ -3763,6 +3928,7 @@ local function UpdateTriggerFOV()
     end
 end
 
+-- update silent fov
 local function UpdateSilentFOV()
     local Config = shared.Scare
     local SilentCfg = Config and Config["Silent Aimbot"]
@@ -3847,6 +4013,7 @@ local function UpdateSilentFOV()
     end
 end
 
+-- update esp
 local function UpdateESP()
     if not state.visualsEnabled or not state.namesVisible then
         if LastFrame.ESPVisible then
@@ -3927,6 +4094,7 @@ local function UpdateESP()
     end
 end
 
+-- update panel
 local function UpdatePanel()
     if not state.visualsEnabled or not state.panelVisible then
         if LastFrame.PanelVisible then
@@ -3975,7 +4143,6 @@ local function UpdatePanel()
         local triggerName = getTargetName(triggerTarget, "Trigger Bot")
         local cameraName = getTargetName(cameraTarget, "Camera Aimbot")
         
-        -- determine which target to show in Target line (prioritize silent > trigger > camera)
         local primaryTarget = nil
         local primaryMode = nil
         if silentTarget and State.SilentTargetLocked then
@@ -4030,7 +4197,6 @@ local function UpdatePanel()
                         armorValue = tostring(armorVal)
                     end
                     
-                    -- check for forcefield
                     if char:FindFirstChild("ForceField") or char:FindFirstChildOfClass("ForceField") then
                         hasForceField = true
                         forceFieldStatus = "Forcefield"
@@ -4064,16 +4230,13 @@ local function UpdatePanel()
         local FC = FeatureColor
         local DotColor = Color3.new(0.35,0.35,0.35)
         
-        -- LEGACY POSITION (centered, near bottom)
         local LegacyBaseX = math.floor(ViewportX / 2 + 0.6)
         local LegacyBaseY = math.floor(ViewportY - 230 + 0.5)
         
-        -- V2 POSITION (you can adjust these independently)
-        local V2BaseX = math.floor(ViewportX / 2 + 0.6)  -- center
-        local V2BaseY = math.floor(ViewportY - 210 + 0.1)  -- near bottom
+        local V2BaseX = math.floor(ViewportX / 2 + 0.6)
+        local V2BaseY = math.floor(ViewportY - 210 + 0.1)
         
         if PanelVersion == "Legacy" then
-            -- LEGACY PANEL LAYOUT
             local DistanceColor = ColorsCfg["Distance"] or Color3.new(0, 255, 255)
             local DC = DistanceColor
             local StatusEnabled = PanelCfg["Status"] == true
@@ -4103,7 +4266,6 @@ local function UpdatePanel()
                 end
             end
             
-            -- adjust legacy baseY based on enabled features
             if StatusEnabled then
                 if DistanceEnabled then
                     LegacyBaseY = math.floor(ViewportY - 230 + 0.5)
@@ -4222,9 +4384,6 @@ local function UpdatePanel()
             PanelVis = true
             
         else
-            -- V2 PANEL LAYOUT (using V2BaseX and V2BaseY)
-            
-            -- Alias line (top)
             PanelTitle.Text = string.format('<font color="rgb(%d,%d,%d)">Scare</font><font color="rgb(%d,%d,%d)">.</font><font color="rgb(%d,%d,%d)">%s</font>',
                 math.floor(PC.R*255), math.floor(PC.G*255), math.floor(PC.B*255),
                 math.floor(DotColor.R*255), math.floor(DotColor.G*255), math.floor(DotColor.B*255),
@@ -4236,7 +4395,6 @@ local function UpdatePanel()
             local OffsetY = V2BaseY + 20
             local LabelIdx = 0
 
-            -- Silent Aim line (On/Off)
             LabelIdx = LabelIdx + 1
             local L = PanelLabels[LabelIdx]
             if L then
@@ -4256,7 +4414,6 @@ local function UpdatePanel()
                 OffsetY = OffsetY + 18
             end
 
-            -- Trigger Bot line (On/Off)
             LabelIdx = LabelIdx + 1
             local L2 = PanelLabels[LabelIdx]
             if L2 then
@@ -4276,7 +4433,6 @@ local function UpdatePanel()
                 OffsetY = OffsetY + 18
             end
 
-            -- Aim Assist line (On/Off)
             LabelIdx = LabelIdx + 1
             local L3 = PanelLabels[LabelIdx]
             if L3 then
@@ -4296,11 +4452,9 @@ local function UpdatePanel()
                 OffsetY = OffsetY + 18
             end
 
-            -- Speedwalk line (On/Off)
             LabelIdx = LabelIdx + 1
             local L4 = PanelLabels[LabelIdx]
-            if L4 then
-                local speedColor = (walkSpeedStatus == "On") and CurrentColor or FC
+            if L4 then                local speedColor = (walkSpeedStatus == "On") and CurrentColor or FC
                 L4.Text = string.format('Speedwalk <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">%s</font>',
                     math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
                     math.floor(speedColor.R*255), math.floor(speedColor.G*255), math.floor(speedColor.B*255),
@@ -4312,7 +4466,6 @@ local function UpdatePanel()
                 OffsetY = OffsetY + 18
             end
 
-            -- Target line (bottom) with (PlayerName) (Health : Armor) OR (Forcefield) and (Distance)
             LabelIdx = LabelIdx + 1
             local L5 = PanelLabels[LabelIdx]
             if L5 then
@@ -4321,7 +4474,6 @@ local function UpdatePanel()
                     math.floor(CurrentColor.R*255), math.floor(CurrentColor.G*255), math.floor(CurrentColor.B*255),
                     targetDisplayName)
                 
-                -- Status: (Forcefield) if has forcefield, otherwise (Health : Armor)
                 if hasForceField then
                     targetText = targetText .. string.format(' <font color="rgb(%d,%d,%d)">(</font><font color="rgb(%d,%d,%d)">%s</font><font color="rgb(%d,%d,%d)">)</font>',
                         math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
@@ -4337,7 +4489,6 @@ local function UpdatePanel()
                         math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255))
                 end
                 
-                -- Distance in parentheses (studs)
                 if targetDistance ~= "" then
                     targetText = targetText .. string.format(' <font color="rgb(%d,%d,%d)">(</font><font color="rgb(%d,%d,%d)">%s</font><font color="rgb(%d,%d,%d)">)</font>',
                         math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
@@ -4372,6 +4523,7 @@ local function UpdatePanel()
     end
 end
 
+-- update trigger bot
 local function UpdateTriggerBot()
     local Config = shared.Scare
     local TriggerCfg = Config and Config["Trigger Bot"]
@@ -4384,7 +4536,11 @@ local function UpdateTriggerBot()
     local Target = State.Targets.Trigger
     if not Target then return end
     
-    -- distance check with blank prevention override
+    -- check forcefield - if target has forcefield, do not shoot but keep lock
+    if HasForceField(Target) then
+        return
+    end
+    
     local MaxRange = GetSelectingDistance("Trigger Bot")
     local BlankPrevention = TriggerCfg["Blank Prevention"]
     
@@ -4525,6 +4681,7 @@ local function UpdateTriggerBot()
     end
 end
 
+-- update shared target
 local function UpdateSharedTarget()
     if state.sharedTargetLocked and state.sharedTarget then
         if not CheckChecksNoVisible(state.sharedTarget, "Silent Aimbot") then
@@ -4537,6 +4694,7 @@ local function UpdateSharedTarget()
     end
 end
 
+-- get camera target part
 local function GetCameraTargetPart(Player)
     local Character = Player.Character
     if not Character then return nil end
@@ -4576,12 +4734,12 @@ local function GetCameraTargetPart(Player)
     return Character:FindFirstChild("HumanoidRootPart")
 end
 
+-- update camera aimbot
 local function UpdateCameraAimbot()
     local Config = shared.Scare
     local CameraCfg = Config and Config["Camera Aimbot"]
     if not CameraCfg or not CameraCfg["Enabled"] then return end
     
-    -- do not automatically lock on – only proceed if already locked
     if not State.CameraTargetLocked then
         return
     end
@@ -4720,6 +4878,7 @@ local function UpdateCameraAimbot()
     end
 end
 
+-- main render loop
 local preRenderConnection = nil
 preRenderConnection = RunService.RenderStepped:Connect(function()
     if not shared.Scare then
