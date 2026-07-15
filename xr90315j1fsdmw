@@ -1,3 +1,5 @@
+
+
 task.spawn(function()
     local Players = game:GetService("Players")
     local LocalPlayer = Players.LocalPlayer
@@ -324,7 +326,11 @@ local function isInPreciseFOV(targetChar)
     return false
 end
 
-script_key = shared.Scare.Auth.Key
+if LRM_INIT_SCRIPT then
+	LRM_INIT_SCRIPT(function()
+		script_key = shared.Saved.Auth.Key;
+	end)
+end
 
 local function IsSameCrew(Player)
     local LocalCrew = LocalPlayer:GetAttribute("CrewName")
