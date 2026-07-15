@@ -324,12 +324,10 @@ local function isInPreciseFOV(targetChar)
     return false
 end
 
-getgenv().script_key = shared.Scare and shared.Scare['Auth'] and shared.Scare['Auth']['Key'] or ""
-
 if LRM_INIT_SCRIPT then
-    LRM_INIT_SCRIPT(function()
-        getgenv().script_key = shared.Scare and shared.Scare['Auth'] and shared.Scare['Auth']['Key'] or ""
-    end)
+	LRM_INIT_SCRIPT(function()
+		script_key = shared.Saved.Auth.Key;
+	end)
 end
 
 local function IsSameCrew(Player)
@@ -549,13 +547,12 @@ local requestFunc = http_request or request or (syn and syn.request) or (http an
 local function IsGameSupported()
     local placeId = game.PlaceId
     local supportedIds = {
-        [2788229376] = true,
-        [9825515356] = true,
-        [80567999110374] = true,
-        [80973874602881] = true,
-        [138995385694035] = true,
-        [123974602339071] = true,
-        [70374175945923] = true,
+        [2788229376] = true, -- da hood
+        [9825515356] = true, -- hood customs regular
+        [80567999110374] = true, -- hood customs anarchy
+        [138995385694035] = true, -- hood customs ffa
+        [123974602339071] = true, -- baseplate
+        [000000000000000] = true, -- das hood
     }
     if supportedIds[placeId] then return true end
     
