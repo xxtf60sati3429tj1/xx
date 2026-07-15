@@ -386,7 +386,6 @@ local function HasForcefieldOrInvis(Player)
     return false
 end
 
--- helper function specifically for forcefield check in triggerbot
 local function HasForceField(Player)
     if not Player or not Player.Character then return false end
     if Player.Character:FindFirstChild("ForceField") or Player.Character:FindFirstChildOfClass("ForceField") then
@@ -537,6 +536,9 @@ local state = {
     hopsMonitor = nil,
     hopsHumanoid = nil,
     doubleTapConnections = {},
+    sorterActive = false,
+    panicGroundActive = false,
+    panicGroundConnection = nil,
 }
 
 local player = LocalPlayer
@@ -1421,7 +1423,7 @@ local function SetupAntiStomp()
     state.antiStompConnection = LocalPlayer.CharacterAdded:Connect(HandleAntiStomp)
 end
 
--- panic ground
+-- panic ground - forces player to nearest ground below them from any distance
 local function SetupPanicGround()
     local PanicSystem = shared.Scare and shared.Scare['Panic System']
     if not PanicSystem then return end
@@ -1440,11 +1442,12 @@ local function SetupPanicGround()
         if input.KeyCode == keyCode then
             local Character = LocalPlayer.Character
             if not Character then return end
-            local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
-            if not HumanoidRootPart then return end
             
-            local RayOrigin = HumanoidRootPart.Position
-            local RayDirection = Vector3.new(0, -500, 0)
+            local HRP = Character:FindFirstChild("HumanoidRootPart")
+            if not HRP then return end
+            
+            local RayOrigin = HRP.Position
+            local RayDirection = Vector3.new(0, -math.huge, 0)
             local RayParams = RaycastParams.new()
             RayParams.FilterType = Enum.RaycastFilterType.Exclude
             RayParams.FilterDescendantsInstances = {Character}
@@ -1452,8 +1455,17 @@ local function SetupPanicGround()
             
             local Hit = Workspace:Raycast(RayOrigin, RayDirection, RayParams)
             if Hit then
-                local GroundPosition = Hit.Position + Vector3.new(0, 3, 0)
-                HumanoidRootPart.CFrame = CFrame.new(GroundPosition)
+                local GroundPos = Vector3.new(HRP.Position.X, Hit.Position.Y + 3, HRP.Position.Z)
+                HRP.CFrame = CFrame.new(GroundPos)
+                HRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                HRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                
+                local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+                if Humanoid then
+                    Humanoid.PlatformStand = true
+                    task.wait(0.05)
+                    Humanoid.PlatformStand = false
+                end
             end
         end
     end)
@@ -1550,11 +1562,21 @@ local function SetupInventorySorter()
     local keybind = SorterCfg["Keybind"]
     if not keybind then return end
     
+    local function CleanupSorter()
+        state.sorterActive = false
+    end
+    
     local function SortInventory()
+        if state.sorterActive then return end
+        state.sorterActive = true
+        
         RunService.RenderStepped:Wait()
         local temp = {}
         
-        if not LocalPlayer.Backpack then return end
+        if not LocalPlayer.Backpack then
+            state.sorterActive = false
+            return
+        end
         
         for i = 1, #LocalPlayer.Backpack:GetChildren() do
             local tool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
@@ -1593,6 +1615,8 @@ local function SetupInventorySorter()
                 end
             end
         end
+        
+        state.sorterActive = false
     end
     
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -1612,422 +1636,1146 @@ local DaHoodPlaceId = {
 }
 
 if DaHoodPlaceId[game.PlaceId] then
-    local KnifeSkins = {
-        ["Love Kukri"] = {soundId="",animationId="",positionOffset=Vector3.new(-0.14,0.14,-1.62),rotationOffset=Vector3.new(-90,180,-4.97),particle=true,textureId="rbxassetid://12124159284"},
-        ["GPO-Knife"] = {soundId="rbxassetid://4604390759",animationId="rbxassetid://14014278925",positionOffset=Vector3.new(0.00, -0.32, -1.07),rotationOffset=Vector3.new(90, -97.4, 90),particle=false,textureId=""},
-        ["Golden Age Tanto"] = {soundId="rbxassetid://5917819099",animationId="rbxassetid://13473404819",positionOffset=Vector3.new(0, -0.20, -1.2),rotationOffset=Vector3.new(90, 263.7, 180),particle=false,textureId=""}
-    }
+    local function GetSkinChangerCfg()
+        if not shared.Scare or not shared.Scare['Skin Changer'] then
+            return { Enabled = false, Skins = {} }
+        end
+        local cfg = shared.Scare['Skin Changer']
+        local skins = {}
+        for k, v in pairs(cfg) do
+            if k ~= 'Enabled' and k ~= 'Beam Color' then
+                skins[k] = v
+            end
+        end
+        return {
+            Enabled = cfg['Enabled'] or false,
+            Skins = skins
+        }
+    end
+    
+    local AppliedSkins = { }
+    local KnifeData = { }
+    local ToolRegistry = { }
+    local SkinAssets = ReplicatedStorage:FindFirstChild('SkinAssets')
+    local SkinModules = ReplicatedStorage:FindFirstChild('SkinModules')
+    local SkinData = nil
 
-    local knifeData = {}
-    local _currentKnifeSound = nil
-
-    if not shared.ScareSkinData then
-        shared.ScareSkinData = {}
+    local function IsKnifeSkin(Name)
+        local N = Name:lower():gsub(' ', '')
+        return N == 'goldenagetanto' or N == 'gpo-knife' or N == 'gpo-knifeprestige' or N == 'heaven'
+            or N == 'lovekukri' or N == 'purpledagger' or N == 'bluedagger' or N == 'greendagger' or N == 'reddagger'
     end
 
-    local skinChanger = shared.Scare and shared.Scare['Skin Changer']
+    local function HideKnifeDefaults(Tool, SkinRoot)
+        local Hidden = { }
+        for _, Desc in next, Tool:GetDescendants() do
+            if not Desc:IsA('BasePart') then continue end
+            if Desc.Name == 'Handle.R' or (Desc.Parent == Tool and Desc.Name == 'Handle') then continue end
+            if Desc:GetAttribute('_skinclone') or (SkinRoot and (Desc == SkinRoot or Desc:IsDescendantOf(SkinRoot))) then continue end
+            Hidden[Desc] = {
+                Transparency = Desc.Transparency,
+                LocalTransparencyModifier = Desc.LocalTransparencyModifier,
+            }
+            Desc.Transparency = 1
+            Desc.LocalTransparencyModifier = 1
+        end
+        return Hidden
+    end
 
-    if skinChanger and skinChanger['Enabled'] then
-        for weapon, skin in pairs(skinChanger) do
-            if weapon ~= 'Enabled' and weapon ~= 'Beam Color' then
-                shared.ScareSkinData[weapon] = skin
+    local function RestoreKnifeDefaults(Hidden)
+        if not Hidden then return end
+        for Part, State in next, Hidden do
+            if Part and Part.Parent and type(State) == 'table' then
+                Part.Transparency = State.Transparency
+                Part.LocalTransparencyModifier = State.LocalTransparencyModifier
             end
         end
     end
 
-    local function clearMesh(tool, original)
-        for _, child in ipairs(tool:GetChildren()) do
-            if child.Name == "CurrentSkin" or (child:IsA("MeshPart") and child ~= original) then
-                child:Destroy()
+    local function CleanKnife(Tool, SkipRestore)
+        local Data = KnifeData[Tool]
+        local KeptHidden = SkipRestore and Data and Data.hiddenParts or nil
+        if Data then
+            if Data.track then
+                Data.track:Stop()
+                Data.track:Destroy()
+                Data.track = nil
+            end
+            if Data.welds then
+                for _, W in next, Data.welds do
+                    if W then W:Destroy() end
+                end
+            end
+            if Data.sounds then
+                for _, S in next, Data.sounds do
+                    if S and S.Parent then S:Destroy() end
+                end
+            end
+            if not SkipRestore then
+                RestoreKnifeDefaults(Data.hiddenParts)
+                KeptHidden = nil
             end
         end
-    end
-
-    local function applyBat(tool, name)
-        local mesh = nil
-        local descendants = tool:GetDescendants()
-        
-        for i = 1, #descendants do
-            local v = descendants[i]
-            if v:IsA("MeshPart") and v.Transparency == 0 then
-                mesh = v
-                break
-            end
-        end
-        
-        if not mesh then return end
-        
-        local batSkins = ReplicatedStorage:FindFirstChild("SkinModules")
-        if not batSkins then return end
-        batSkins = batSkins:FindFirstChild("Bats")
-        if not batSkins then return end
-        
-        local skin = batSkins:FindFirstChild(name)
-        if not skin then return end
-        
-        local clone = skin:Clone()
-        clone.Parent = tool
-        clone.CFrame = mesh.CFrame
-        clone.Name = "CurrentSkin"
-        
-        local weld = Instance.new("Weld")
-        weld.Part0 = clone
-        weld.Part1 = mesh
-        weld.Parent = clone
-        
-        mesh.Transparency = 1
-    end
-
-    local function applyGun(tool, name)
-        local original = tool:FindFirstChildOfClass("MeshPart")
-        if not original then return end
-        
-        local skinModules = ReplicatedStorage:FindFirstChild("SkinModules")
-        if not skinModules then return end
-        
-        local success, skinData = pcall(function() return require(skinModules) end)
-        if not success or not skinData then return end
-        
-        local toolName = tool.Name
-        local info = skinData[toolName] and skinData[toolName][name]
-        if not info then return end
-        
-        clearMesh(tool, original)
-        
-        local skinPart = info.TextureID
-        
-        if typeof(skinPart) == "Instance" then
-            local clone = skinPart:Clone()
-            clone.Parent = tool
-            clone.CFrame = original.CFrame
-            clone.Name = "CurrentSkin"
-            
-            local weld = Instance.new("Weld")
-            weld.Part0 = clone
-            weld.Part1 = original
-            weld.C0 = info.CFrame:Inverse()
-            weld.Parent = clone
-            
-            original.Transparency = 1
-        else
-            original.TextureID = skinPart
-            original.Transparency = 0
-        end
-        
-        local handle = tool:FindFirstChild("Handle")
-        if not handle then return end
-        
-        local shootSound = handle:FindFirstChild("ShootSound")
-        if shootSound then
-            local skinAssets = ReplicatedStorage:FindFirstChild("SkinAssets")
-            if skinAssets then
-                local gunSounds = skinAssets:FindFirstChild("GunShootSounds")
-                if gunSounds then
-                    local sounds = gunSounds:FindFirstChild(toolName)
-                    local soundObject = sounds and sounds:FindFirstChild(name)
-                    if soundObject then
-                        shootSound.SoundId = soundObject.Value
-                    end
+        local Mesh = Tool:FindFirstChild('Default')
+        if Mesh then
+            for _, V in next, Mesh:GetChildren() do
+                if V.Name == 'Handle.R' or V:GetAttribute('_skinclone') then
+                    V:Destroy()
                 end
             end
         end
-        
-        local skinAssets = ReplicatedStorage:FindFirstChild("SkinAssets")
-        if skinAssets then
-            local particleFolder = skinAssets:FindFirstChild("GunHandleParticle")
-            if particleFolder then
-                local particleSource = particleFolder:FindFirstChild(name)
-                if particleSource then
-                    local particleEmitter = particleSource:FindFirstChild("ParticleEmitter")
-                    if particleEmitter then
-                        for _, existing in ipairs(handle:GetChildren()) do
-                            if existing:IsA("ParticleEmitter") then
-                                existing:Destroy()
-                            end
+        KnifeData[Tool] = nil
+        return KeptHidden
+    end
+
+    local function ApplyKnife(Character, Tool, SkinName)
+        if not IsKnifeSkin(SkinName) then return end
+        if Tool.Parent ~= Character then return end
+        local Humanoid = Character:FindFirstChild('Humanoid')
+        local RHand = Character:FindFirstChild('RightHand')
+        if not Humanoid or not RHand then return end
+
+        local Existing = KnifeData[Tool]
+        if Existing and Existing.welds and #Existing.welds > 0 then
+            local HandleR = Tool:FindFirstChild('Default') and Tool:FindFirstChild('Default'):FindFirstChild('Handle.R')
+            if HandleR and HandleR.Parent then
+                local M6D = HandleR:FindFirstChildOfClass('Motor6D')
+                if M6D then
+                    M6D.Part0 = RHand
+                end
+                if not Existing.hiddenParts then
+                    local SkinRoot = nil
+                    for _, Child in next, Tool:FindFirstChild('Default'):GetChildren() do
+                        if Child:GetAttribute('_skinclone') then
+                            SkinRoot = Child
+                            break
                         end
-                        particleEmitter:Clone().Parent = handle
+                    end
+                    Existing.hiddenParts = HideKnifeDefaults(Tool, SkinRoot)
+                end
+                local Animator = Humanoid:FindFirstChildOfClass('Animator')
+                if Animator then
+                    local N = SkinName:lower():gsub(' ', '')
+                    local AnimId, SndId
+                    if N == 'goldenagetanto' then AnimId = 'rbxassetid://13473404819'; SndId = 'rbxassetid://5917819099'
+                    elseif N == 'gpo-knife' or N == 'gpo-knifeprestige' then AnimId = 'rbxassetid://14014278925'; SndId = 'rbxassetid://4604390759'
+                    elseif N == 'heaven' then AnimId = 'rbxassetid://14500266726'; SndId = 'rbxassetid://14489860007'
+                    elseif N == 'purpledagger' then AnimId = 'rbxassetid://17824999722'; SndId = 'rbxassetid://17822743153'
+                    elseif N == 'bluedagger' then AnimId = 'rbxassetid://17824995184'; SndId = 'rbxassetid://17822737046'
+                    elseif N == 'greendagger' then AnimId = 'rbxassetid://17825004320'; SndId = 'rbxassetid://17822741762'
+                    elseif N == 'reddagger' then AnimId = 'rbxassetid://17825008844'; SndId = 'rbxassetid://17822952417'
+                    end
+                    if AnimId then
+                        if Existing.track then
+                            Existing.track:Stop()
+                            Existing.track:Destroy()
+                            Existing.track = nil
+                        end
+                        local Anim = Instance.new('Animation')
+                        Anim.AnimationId = AnimId
+                        local Track = Animator:LoadAnimation(Anim)
+                        Track.Looped = false
+                        Track:Play()
+                        Existing.track = Track
+                        Anim:Destroy()
+                        Track.Ended:Once(function()
+                            if Existing.track == Track then Existing.track = nil end
+                            Track:Destroy()
+                        end)
+                    end
+                    if SndId then
+                        local Snd = Instance.new('Sound')
+                        Snd.SoundId = SndId
+                        Snd.Parent = Workspace
+                        Snd:Play()
+                        table.insert(Existing.sounds, Snd)
+                        Snd.Ended:Connect(function()
+                            Snd:Destroy()
+                        end)
                     end
                 end
+                return
             end
         end
-        
-        handle:SetAttribute("SkinName", name)
-    end
 
-    local function cleanKnife(tool)
-        local data = knifeData[tool]
-        if data then
-            if data.track then
-                data.track:Stop()
-                data.track:Destroy()
-                data.track = nil
-            end
-            if data.welds then
-                for _, weld in ipairs(data.welds) do
-                    if weld then weld:Destroy() end
-                end
-            end
+        local KeptHidden = CleanKnife(Tool, true)
+        KnifeData[Tool] = { track = nil, welds = { }, sounds = { }, hiddenParts = KeptHidden }
+        local Data = KnifeData[Tool]
+        local Mesh = Tool:FindFirstChild('Default')
+        if not Mesh then return end
+        if not Data.hiddenParts then
+            Data.hiddenParts = HideKnifeDefaults(Tool, nil)
         end
-        
-        local mesh = tool:FindFirstChild("Default")
-        if mesh then
-            local children = mesh:GetChildren()
-            for i = 1, #children do
-                local v = children[i]
-                if v.Name == "Handle.R" then
-                    v:Destroy()
-                elseif v:IsA("Model") then
-                    v:Destroy()
-                elseif v:IsA("BasePart") and v.Name ~= "Default" then
-                    v:Destroy()
-                end
-            end
-            mesh.Transparency = 0
-        end
-        
-        knifeData[tool] = nil
-    end
+        local Knives = SkinModules and SkinModules:FindFirstChild('Knives')
+        if not Knives then return end
+        local SkinModel = Knives:FindFirstChild(SkinName)
+        if not SkinModel then return end
+        local Clone = SkinModel:Clone()
+        Clone.Name = SkinName
+        Clone:SetAttribute('_skinclone', true)
+        local HandleR = Instance.new('Part')
+        HandleR.Name = 'Handle.R'
+        HandleR.Transparency = 1
+        HandleR.CanCollide = false
+        HandleR.Anchored = false
+        HandleR.Size = Vector3.new(0.001, 0.001, 0.001)
+        HandleR.Massless = true
+        HandleR.Parent = Mesh
+        local M6D = Instance.new('Motor6D')
+        M6D.Name = 'Handle.R'
+        M6D.Part0 = RHand
+        M6D.Part1 = HandleR
+        M6D.Parent = HandleR
 
-    local function applyKnife(character, tool, skin)
-        local config = KnifeSkins[skin]
-        if not config then return end
-        
-        local humanoid = character:FindFirstChild("Humanoid")
-        local rightHand = character:FindFirstChild("RightHand")
-        if not humanoid or not rightHand then return end
-        
-        cleanKnife(tool)
-        
-        knifeData[tool] = {track=nil, welds={}}
-        local data = knifeData[tool]
-        local mesh = tool:FindFirstChild("Default")
-        if not mesh then return end
-        
-        mesh.Transparency = 1
-        
-        local skinModules = ReplicatedStorage:FindFirstChild("SkinModules")
-        if not skinModules then return end
-        local knives = skinModules:FindFirstChild("Knives")
-        if not knives then return end
-        
-        local skinModel = knives:FindFirstChild(skin)
-        if not skinModel then return end
-        
-        local clone = skinModel:Clone()
-        clone.Name = skin
-        
-        local handleR = Instance.new("Part")
-        handleR.Name = "Handle.R"
-        handleR.Transparency = 1
-        handleR.CanCollide = false
-        handleR.Anchored = false
-        handleR.Size = Vector3.new(0.001, 0.001, 0.001)
-        handleR.Massless = true
-        handleR.Parent = mesh
-        
-        local motor = Instance.new("Motor6D")
-        motor.Name = "Handle.R"
-        motor.Part0 = rightHand
-        motor.Part1 = handleR
-        motor.Parent = handleR
-        
-        local offset = CFrame.new(config.positionOffset) * CFrame.Angles(
-            math.rad(config.rotationOffset.X),
-            math.rad(config.rotationOffset.Y),
-            math.rad(config.rotationOffset.Z)
-        )
-        
-        if clone:IsA("Model") then
-            if not clone.PrimaryPart then
-                local children = clone:GetChildren()
-                for i = 1, #children do
-                    local c = children[i]
-                    if c:IsA("BasePart") then
-                        clone.PrimaryPart = c
+        local Offset, AnimId, SndId
+        local N = SkinName:lower():gsub(' ', '')
+
+        if N == 'goldenagetanto' then
+            Offset = CFrame.new(0, -0.20, -1.2) * CFrame.Angles(math.rad(90), math.rad(263.7), math.rad(180))
+            AnimId = 'rbxassetid://13473404819'
+            SndId = 'rbxassetid://5917819099'
+        elseif N == 'gpo-knife' or N == 'gpo-knifeprestige' then
+            Offset = CFrame.new(0, -0.32, -1.07) * CFrame.Angles(math.rad(90), math.rad(-97.4), math.rad(90))
+            AnimId = 'rbxassetid://14014278925'
+            SndId = 'rbxassetid://4604390759'
+        elseif N == 'heaven' then
+            Offset = CFrame.new(-0.02, -0.82, 0.20) * CFrame.Angles(math.rad(64.42), math.rad(3.79), math.rad(0))
+            AnimId = 'rbxassetid://14500266726'
+            SndId = 'rbxassetid://14489860007'
+        elseif N == 'lovekukri' then
+            Offset = CFrame.new(-0.14, 0.14, -1.62) * CFrame.Angles(math.rad(-90), math.rad(180), math.rad(-4.97))
+        elseif N == 'purpledagger' then
+            Offset = CFrame.new(-0.13, -0.24, -1.80) * CFrame.Angles(math.rad(89.05), math.rad(96.63), math.rad(180))
+            AnimId = 'rbxassetid://17824999722'
+            SndId = 'rbxassetid://17822743153'
+        elseif N == 'bluedagger' then
+            Offset = CFrame.new(-0.13, -0.24, -1.80) * CFrame.Angles(math.rad(89.05), math.rad(96.63), math.rad(180))
+            AnimId = 'rbxassetid://17824995184'
+            SndId = 'rbxassetid://17822737046'
+        elseif N == 'greendagger' then
+            Offset = CFrame.new(-0.13, -0.24, -1.07) * CFrame.Angles(math.rad(89.05), math.rad(96.63), math.rad(180))
+            AnimId = 'rbxassetid://17825004320'
+            SndId = 'rbxassetid://17822741762'
+        elseif N == 'reddagger' then
+            Offset = CFrame.new(-0.13, -0.24, -1.07) * CFrame.Angles(math.rad(89.05), math.rad(96.63), math.rad(180))
+            AnimId = 'rbxassetid://17825008844'
+            SndId = 'rbxassetid://17822952417'
+        end
+
+        if not Offset then return end
+
+        if Clone:IsA('Model') then
+            if not Clone.PrimaryPart then
+                for _, C in next, Clone:GetChildren() do
+                    if C:IsA('BasePart') then
+                        Clone.PrimaryPart = C
                         break
                     end
                 end
             end
-            if clone.PrimaryPart then
-                local descendants = clone:GetDescendants()
-                for i = 1, #descendants do
-                    local part = descendants[i]
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                        part.Massless = true
-                        part.Anchored = false
-                        
-                        local weld = Instance.new("Weld")
-                        weld.Part0 = handleR
-                        weld.Part1 = part
-                        weld.C0 = offset
-                        weld.C1 = part.CFrame:ToObjectSpace(clone.PrimaryPart.CFrame)
-                        weld.Parent = part
-                        table.insert(data.welds, weld)
+            if Clone.PrimaryPart then
+                for _, P in next, Clone:GetDescendants() do
+                    if P:IsA('BasePart') then
+                        P.CanCollide = false
+                        P.Massless = true
+                        P.Anchored = false
+                        local W = Instance.new('Weld')
+                        W.Part0 = HandleR
+                        W.Part1 = P
+                        W.C0 = Offset
+                        W.C1 = P.CFrame:ToObjectSpace(Clone.PrimaryPart.CFrame)
+                        W.Parent = P
+                        table.insert(Data.welds, W)
                     end
                 end
             end
-            clone.Parent = mesh
-        elseif clone:IsA("BasePart") then
-            clone.CanCollide = false
-            clone.Massless = true
-            clone.Anchored = false
-            
-            if clone:IsA("MeshPart") and config.textureId and config.textureId ~= "" then
-                clone.TextureID = config.textureId
-            end
-            
-            if config.particle then
-                local skinAssets = ReplicatedStorage:FindFirstChild("SkinAssets")
-                if skinAssets then
-                    local particleFolder = skinAssets:FindFirstChild("GunHandleParticle")
-                    if particleFolder then
-                        local particleSource = particleFolder:FindFirstChild(skin)
-                        if particleSource then
-                            local particleEmitter = particleSource:FindFirstChild("ParticleEmitter")
-                            if particleEmitter then
-                                particleEmitter:Clone().Parent = clone
+            Clone.Parent = Mesh
+        elseif Clone:IsA('BasePart') then
+            Clone.CanCollide = false
+            Clone.Massless = true
+            Clone.Anchored = false
+            Clone.Parent = Mesh
+            local W = Instance.new('Weld')
+            W.Part0 = HandleR
+            W.Part1 = Clone
+            W.C0 = Offset
+            W.Parent = Clone
+            table.insert(Data.welds, W)
+        end
+
+        Data.hiddenParts = HideKnifeDefaults(Tool, Clone)
+
+        local Animator = Humanoid:FindFirstChildOfClass('Animator')
+        if not Animator then
+            Animator = Instance.new('Animator')
+            Animator.Parent = Humanoid
+        end
+        if AnimId then
+            local Anim = Instance.new('Animation')
+            Anim.AnimationId = AnimId
+            local Track = Animator:LoadAnimation(Anim)
+            Track.Looped = false
+            Track:Play()
+            Data.track = Track
+            Anim:Destroy()
+            Track.Ended:Once(function()
+                if Data.track == Track then
+                    Data.track = nil
+                end
+                Track:Destroy()
+            end)
+        end
+        if SndId then
+            local Snd = Instance.new('Sound')
+            Snd.SoundId = SndId
+            Snd.Parent = Workspace
+            Snd:Play()
+            table.insert(Data.sounds, Snd)
+            Snd.Ended:Connect(function()
+                Snd:Destroy()
+            end)
+        end
+    end
+
+    local SkinModulesClone = nil
+    local function LoadSkinData()
+        if SkinData then return SkinData end
+        if SkinModules and SkinModules:IsA('ModuleScript') then
+            SkinModulesClone = SkinModules:Clone()
+            local Success, Result = pcall(require, SkinModulesClone)
+            if Success then SkinData = Result end
+        end
+        return SkinData
+    end
+
+    local function GetSkinInfo(WeaponName, SkinName)
+        local Data = LoadSkinData()
+        if not Data then return nil end
+        local WeaponSkins = Data[WeaponName]
+        if not WeaponSkins then
+            local BracketName = '[' .. WeaponName:gsub('%[', ''):gsub('%]', '') .. ']'
+            WeaponSkins = Data[BracketName]
+        end
+        if not WeaponSkins then return nil end
+        local Info = WeaponSkins[SkinName]
+        if not Info then
+            Info = WeaponSkins[SkinName:gsub('-', ' ')]
+        end
+        if not Info then
+            Info = WeaponSkins[SkinName:gsub('-', '')]
+        end
+        return Info
+    end
+
+    local function FindSourceMesh(SkinName, MeshRef, IsKnife)
+        if not SkinModules then return nil end
+        if IsKnife then
+            local CleanSkin = SkinName:lower():gsub(' ', '')
+            local KnivesFolder = SkinModules:FindFirstChild('Knives')
+            if KnivesFolder then
+                for _, Child in next, KnivesFolder:GetChildren() do
+                    if Child:IsA('MeshPart') then
+                        local CleanName = Child.Name:lower():gsub(' ', '')
+                        if Child.Name == SkinName or CleanName == CleanSkin then
+                            return Child
+                        end
+                    elseif Child:IsA('Folder') or Child:IsA('Model') then
+                        local CleanName = Child.Name:lower():gsub(' ', '')
+                        if Child.Name == SkinName or CleanName == CleanSkin then
+                            for _, Sub in next, Child:GetChildren() do
+                                if Sub:IsA('MeshPart') then
+                                    return Sub
+                                end
                             end
                         end
                     end
                 end
             end
-            
-            clone.Parent = mesh
-            
-            local weld = Instance.new("Weld")
-            weld.Part0 = handleR
-            weld.Part1 = clone
-            weld.C0 = offset
-            weld.Parent = clone
-            table.insert(data.welds, weld)
-        end
-        
-        local animator = humanoid:FindFirstChildOfClass("Animator")
-        if not animator then
-            animator = Instance.new("Animator")
-            animator.Parent = humanoid
-        end
-        
-        if config.animationId and config.animationId ~= "" then
-            local animation = Instance.new("Animation")
-            animation.AnimationId = config.animationId
-            local track = animator:LoadAnimation(animation)
-            track.Looped = false
-            track:Play()
-            data.track = track
-            animation:Destroy()
-            track.Ended:Once(function()
-                if data.track == track then data.track = nil end
-                track:Destroy()
-            end)
-        end
-        
-        if config.soundId and config.soundId ~= "" then
-            if not _currentKnifeSound or not _currentKnifeSound.IsPlaying then
-                local sound = Instance.new("Sound")
-                sound.SoundId = config.soundId
-                sound.Parent = Workspace
-                sound:Play()
-                _currentKnifeSound = sound
-                sound.Ended:Connect(function()
-                    sound:Destroy()
-                    _currentKnifeSound = nil
-                end)
-            end
-        end
-        
-        tool:SetAttribute("CurrentKnifeSkin", skin)
-    end
-
-    local function setupTool(tool)
-        if not tool:IsA("Tool") then return end
-        if tool:GetAttribute("ScareSkinSetup") then return end
-        tool:SetAttribute("ScareSkinSetup", true)
-        
-        tool.Equipped:Connect(function()
-            local character = tool.Parent
-            if character ~= LocalPlayer.Character then return end
-            
-            local skin = shared.ScareSkinData[tool.Name]
-            if not skin or skin == "" then return end
-            
-            if tool.Name == "[Knife]" then
-                applyKnife(character, tool, skin)
-            elseif tool.Name == "[Bat]" then
-                applyBat(tool, skin)
-            else
-                applyGun(tool, skin)
-            end
-        end)
-        
-        tool.Unequipped:Connect(function()
-            if tool.Name == "[Knife]" then
-                local data = knifeData[tool]
-                if not data then return end
-                if data.welds then
-                    for _, weld in ipairs(data.welds) do
-                        if weld then weld:Destroy() end
-                    end
-                    data.welds = {}
-                end
-                local mesh = tool:FindFirstChild("Default")
-                if mesh then
-                    local children = mesh:GetChildren()
-                    for i = 1, #children do
-                        local v = children[i]
-                        if v.Name == "Handle.R" then
-                            v:Destroy()
-                        elseif v:IsA("Model") then
-                            v:Destroy()
-                        elseif v:IsA("MeshPart") and v.Name ~= "Default" then
-                            v:Destroy()
+            if SkinAssets then
+                local KnifeFolder = SkinAssets:FindFirstChild('KnifeMeshes') or SkinAssets:FindFirstChild('Knives')
+                if KnifeFolder then
+                    for _, Child in next, KnifeFolder:GetChildren() do
+                        if Child:IsA('MeshPart') then
+                            local CleanName = Child.Name:lower():gsub(' ', '')
+                            if Child.Name == SkinName or CleanName == CleanSkin then
+                                return Child
+                            end
+                        elseif Child:IsA('Folder') or Child:IsA('Model') then
+                            local CleanName = Child.Name:lower():gsub(' ', '')
+                            if Child.Name == SkinName or CleanName == CleanSkin then
+                                for _, Sub in next, Child:GetChildren() do
+                                    if Sub:IsA('MeshPart') then
+                                        return Sub
+                                    end
+                                end
+                            end
                         end
                     end
-                    mesh.Transparency = 0
                 end
             end
-        end)
-        
-        if tool.Parent == LocalPlayer.Character then
-            local skin = shared.ScareSkinData[tool.Name]
-            if skin and skin ~= "" then
-                task.spawn(function()
-                    if tool.Name == "[Knife]" then
-                        applyKnife(LocalPlayer.Character, tool, skin)
-                    elseif tool.Name == "[Bat]" then
-                        applyBat(tool, skin)
-                    else
-                        applyGun(tool, skin)
+            return nil
+        end
+        local MeshesFolder = SkinModules:FindFirstChild('Meshes')
+        if not MeshesFolder then return nil end
+        local FolderNames = { SkinName, SkinName:gsub(' ', ''), SkinName:gsub(' ', '_') }
+        for _, FolderName in next, FolderNames do
+            local SkinFolder = MeshesFolder:FindFirstChild(FolderName)
+            if SkinFolder then
+                if MeshRef then
+                    local MeshAliases = {
+                        ['[Silencer]'] = { electric = 'ElectricGlock', glock = 'ElectricGlock' },
+                        ['[SilencerAR]'] = { electric = 'ElectricAR' },
+                    }
+                    local AliasKey = SkinName:lower():gsub('[^%w]', '')
+                    local AliasName = MeshAliases[MeshRef] and MeshAliases[MeshRef][AliasKey]
+                    if AliasName then
+                        local AliasMesh = SkinFolder:FindFirstChild(AliasName)
+                        if AliasMesh and AliasMesh:IsA('MeshPart') then
+                            return AliasMesh
+                        end
+                    end
+                    for _, Child in next, SkinFolder:GetChildren() do
+                        if Child:IsA('MeshPart') then
+                            local CleanChild = Child.Name:lower():gsub(' ', ''):gsub('-', '')
+                            local CleanRef = MeshRef:lower():gsub(' ', ''):gsub('-', '')
+                            if Child.Name == MeshRef or CleanChild == CleanRef then
+                                return Child
+                            end
+                        end
+                    end
+                    return nil
+                end
+                for _, Child in next, SkinFolder:GetChildren() do
+                    if Child:IsA('MeshPart') then
+                        return Child
+                    end
+                end
+            end
+        end
+        if SkinAssets then
+            local GunMeshes = SkinAssets:FindFirstChild('GunMeshes')
+            if GunMeshes then
+                for _, FolderName in next, FolderNames do
+                    local SkinFolder = GunMeshes:FindFirstChild(FolderName)
+                    if SkinFolder then
+                        for _, Child in next, SkinFolder:GetChildren() do
+                            if Child:IsA('MeshPart') then
+                                return Child
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return nil
+    end
+
+    local SkinCFrameFallbacks = {
+        ['[Silencer]:Electric'] = CFrame.new(-0.00207519531, 0.0318723917, 0.0401077271, 0, 0, -1, 0, 1, 0, 1, 0, 0),
+        ['[Glock]:Electric'] = CFrame.new(-0.00207519531, 0.0318723917, 0.0401077271, 0, 0, -1, 0, 1, 0, 1, 0, 0),
+    }
+
+    local function GetSkinCFrame(Tool, SkinName, SkinInfo)
+        if SkinInfo and SkinInfo.CFrame and typeof(SkinInfo.CFrame) == 'CFrame' then
+            return SkinInfo.CFrame
+        end
+        return SkinCFrameFallbacks[Tool.Name .. ':' .. SkinName] or CFrame.new()
+    end
+
+    local function HideOriginalGunMeshes(Tool, Default, SkinClone)
+        local HiddenParts = { }
+        local KeepVisible = { Muzzle = true, Aim = true }
+        for _, Desc in next, Tool:GetDescendants() do
+            if Desc:IsA('BasePart') then
+                if SkinClone and (Desc == SkinClone or Desc:IsDescendantOf(SkinClone)) then
+                    continue
+                end
+                if KeepVisible[Desc.Name] then
+                    continue
+                end
+                if Desc == Default or Desc:IsDescendantOf(Default) then
+                    HiddenParts[Desc] = Desc.Transparency
+                    Desc.Transparency = 1
+                end
+            end
+        end
+        return HiddenParts
+    end
+
+    local function ApplyGunSkinMesh(Default, SkinMesh, SkinCFrame)
+        local Clone = SkinMesh:Clone()
+        Clone.Anchored = false
+        Clone.CanCollide = false
+        Clone.Name = '\0'
+        Clone.CFrame = Default.CFrame
+        local Weld = Instance.new('Weld')
+        Weld.Part0 = Clone
+        Weld.Part1 = Default
+        Weld.C0 = SkinCFrame:Inverse()
+        Weld.Name = '\0'
+        Weld.Parent = Clone
+        Default.Transparency = 1
+        Clone.Parent = Default
+        return Clone
+    end
+
+    local function ResolveSkinTextureMesh(SkinInfo, SkinName)
+        if not SkinInfo or SkinInfo.TextureID == nil then
+            return nil
+        end
+        local TextureValue = SkinInfo.TextureID
+        if typeof(TextureValue) == 'Instance' and TextureValue:IsA('MeshPart') then
+            return TextureValue
+        end
+        if not SkinModules then
+            return nil
+        end
+        local MeshesFolder = SkinModules:FindFirstChild('Meshes')
+        if not MeshesFolder then
+            return nil
+        end
+        local SkinFolder = MeshesFolder:FindFirstChild(SkinName)
+            or MeshesFolder:FindFirstChild(SkinName:gsub(' ', ''))
+            or MeshesFolder:FindFirstChild(SkinName:gsub(' ', '_'))
+            or MeshesFolder:FindFirstChild(SkinName:gsub('-', ' '))
+            or MeshesFolder:FindFirstChild(SkinName:gsub('-', ''))
+        if not SkinFolder then
+            return nil
+        end
+        local MeshName = type(TextureValue) == 'string' and TextureValue or TextureValue.Name
+        if MeshName and MeshName ~= '' then
+            local NamedMesh = SkinFolder:FindFirstChild(MeshName)
+            if NamedMesh and NamedMesh:IsA('MeshPart') then
+                return NamedMesh
+            end
+        end
+        return nil
+    end
+
+    local function GetShootSound(WeaponName, SkinName)
+        if not SkinAssets then return nil end
+        local GunShootSounds = SkinAssets:FindFirstChild('GunShootSounds')
+        if not GunShootSounds then return nil end
+        local WeaponFolder = GunShootSounds:FindFirstChild(WeaponName)
+        if not WeaponFolder then return nil end
+        local SoundValue = WeaponFolder:FindFirstChild(SkinName)
+            or WeaponFolder:FindFirstChild(SkinName:gsub('-', ' '))
+            or WeaponFolder:FindFirstChild(SkinName:gsub('-', ''))
+        if SoundValue and SoundValue:IsA('StringValue') then
+            return SoundValue.Value
+        end
+        return nil
+    end
+
+    local function ApplyGunHandleParticle(Tool, Handle, SkinName)
+        if not SkinAssets or not Tool or not Handle then return end
+        local Data = AppliedSkins[Tool]
+        if not Data then return end
+        local GunHandleParticle = SkinAssets:FindFirstChild('GunHandleParticle')
+        if not GunHandleParticle then return end
+        local ParticleFolder = GunHandleParticle:FindFirstChild(SkinName)
+            or GunHandleParticle:FindFirstChild(SkinName:gsub('-', ' '))
+            or GunHandleParticle:FindFirstChild(SkinName:gsub('-', ''))
+        if not ParticleFolder then return end
+        local Emitter = ParticleFolder:FindFirstChildOfClass('ParticleEmitter')
+        if not Emitter then return end
+        local ClonedParticle = Emitter:Clone()
+        ClonedParticle.Parent = Handle
+        ClonedParticle.Name = '\0'
+        table.insert(Data.ClonedChildren, ClonedParticle)
+    end
+
+    local function RemoveSkinFromTool(Tool)
+        if not Tool or not AppliedSkins[Tool] then return end
+        CleanKnife(Tool)
+        local Original = AppliedSkins[Tool]
+        if Original.Connections then
+            for _, Connection in next, Original.Connections do
+                if Connection and Connection.Connected then
+                    Connection:Disconnect()
+                end
+            end
+        end
+        for _, Child in next, Original.ClonedChildren or { } do
+            if Child and Child.Parent then
+                Child:Destroy()
+            end
+        end
+
+        if Original.HiddenParts then
+            for Part, Transparency in next, Original.HiddenParts do
+                if Part and Part.Parent then
+                    Part.Transparency = Transparency
+                end
+            end
+        end
+        if Original.Default and Original.Default.Parent then
+            for _, Child in next, Original.Default:GetChildren() do
+                if Child.Name == '\0' then
+                    Child:Destroy()
+                end
+            end
+            Original.Default.Transparency = Original.OriginalTransparency or 0
+            Original.Default.LocalTransparencyModifier = Original.OriginalLTM or 0
+            Original.Default.TextureID = Original.OriginalTextureID or ''
+        end
+        for _, Child in next, Tool:GetChildren() do
+            if Child.Name == '\0' then
+                Child:Destroy()
+            end
+        end
+        if Original.OriginalGripCFrame then
+            pcall(function() Tool.GripCFrame = Original.OriginalGripCFrame end)
+        end
+        if Original.ShootSound and Original.OriginalShootSoundId then
+            Original.ShootSound.SoundId = Original.OriginalShootSoundId
+        end
+        local Handle = Tool:FindFirstChild('Handle')
+        if Handle then
+            Handle:SetAttribute('SkinName', Original.OriginalSkinName or '')
+            for _, Child in next, Handle:GetChildren() do
+                if Child.Name == '\0' then
+                    Child:Destroy()
+                end
+            end
+        end
+        AppliedSkins[Tool] = nil
+    end
+
+    local function ApplySkinToTool(Tool, SkinName)
+        if not Tool then return end
+        if AppliedSkins[Tool] and AppliedSkins[Tool].SkinName == SkinName then return end
+        local Handle = Tool:FindFirstChild('Handle')
+        if not Handle then return end
+        local Default = Tool:FindFirstChild('Default')
+        if not Default or not Default:IsA('MeshPart') then
+            Default = Handle:FindFirstChildOfClass('MeshPart')
+            if not Default then
+                for _, Child in next, Tool:GetDescendants() do
+                    if Child:IsA('MeshPart') then
+                        Default = Child
+                        break
+                    end
+                end
+            end
+        end
+        if not Default then
+            local IsKnifeCheck = Tool.Name:lower():find('knife') ~= nil or Tool.Name == '[Knife]'
+            if IsKnifeCheck then
+                if AppliedSkins[Tool] then RemoveSkinFromTool(Tool) end
+                local KnifeInfo = GetSkinInfo(Tool.Name, SkinName)
+                local GcfOk, OrigGcf = pcall(function() return Tool.GripCFrame end)
+                AppliedSkins[Tool] = {
+                    SkinName = SkinName,
+                    OriginalSkinName = Handle:GetAttribute('SkinName') or '',
+                    OriginalGripCFrame = GcfOk and OrigGcf or CFrame.new(),
+                    ClonedChildren = { },
+                    Connections = { },
+                }
+                Handle:SetAttribute('SkinName', SkinName)
+                local AttrConn = Handle:GetAttributeChangedSignal('SkinName'):Connect(function()
+                    if Handle:GetAttribute('SkinName') ~= SkinName then
+                        Handle:SetAttribute('SkinName', SkinName)
                     end
                 end)
+                table.insert(AppliedSkins[Tool].Connections, AttrConn)
+                if KnifeInfo and KnifeInfo.CFrame and typeof(KnifeInfo.CFrame) == 'CFrame' then
+                    pcall(function() Tool.GripCFrame = KnifeInfo.CFrame end)
+                end
+                return
+            end
+            return
+        end
+        local ShootSound = nil
+        for _, Child in next, Tool:GetDescendants() do
+            if Child:IsA('Sound') and (Child.Name == 'Shoot' or Child.Name == 'ShootSound') then
+                ShootSound = Child
+                break
+            end
+        end
+        if AppliedSkins[Tool] then
+            RemoveSkinFromTool(Tool)
+        end
+        AppliedSkins[Tool] = {
+            SkinName = SkinName,
+            OriginalTextureID = Default.TextureID,
+            OriginalTransparency = Default.Transparency,
+            OriginalSkinName = Handle:GetAttribute('SkinName') or '',
+            Default = Default,
+            ShootSound = ShootSound,
+            OriginalShootSoundId = ShootSound and ShootSound.SoundId or nil,
+            ClonedChildren = { },
+            Connections = { },
+            HiddenParts = { },
+        }
+        Handle:SetAttribute('SkinName', SkinName)
+        local AttrConn = Handle:GetAttributeChangedSignal('SkinName'):Connect(function()
+            if Handle:GetAttribute('SkinName') ~= SkinName then
+                Handle:SetAttribute('SkinName', SkinName)
+            end
+        end)
+        table.insert(AppliedSkins[Tool].Connections, AttrConn)
+        local IsKnife = Tool.Name:lower():find('knife') ~= nil or Tool.Name == '[Knife]'
+        local WeaponName = Tool.Name:lower():sub(2, -2)
+        local SkinInfo = GetSkinInfo(Tool.Name, SkinName)
+        local NewMesh = (not IsKnife) and ResolveSkinTextureMesh(SkinInfo, SkinName) or nil
+        local Mesh = nil
+        if IsKnife then
+            if not IsKnifeSkin(SkinName) then
+                Mesh = FindSourceMesh(SkinName, nil, true)
+            end
+        else
+            if SkinModules then
+                local MeshesFolder = SkinModules:FindFirstChild('Meshes')
+                if MeshesFolder then
+                    local SkinFolder = MeshesFolder:FindFirstChild(SkinName)
+                        or MeshesFolder:FindFirstChild(SkinName:gsub(' ', ''))
+                        or MeshesFolder:FindFirstChild(SkinName:gsub(' ', '_'))
+                        or MeshesFolder:FindFirstChild(SkinName:gsub('-', ' '))
+                        or MeshesFolder:FindFirstChild(SkinName:gsub('-', ''))
+                    if SkinFolder then
+                        if SkinFolder:IsA('MeshPart') then
+                            Mesh = SkinFolder
+                        else
+                            Mesh = SkinFolder:GetChildren()
+                        end
+                    end
+                end
+                if not Mesh then
+                    local GunModels = SkinModules:FindFirstChild('GunModels')
+                    if GunModels then
+                        local Model = GunModels:FindFirstChild(SkinName)
+                        or GunModels:FindFirstChild('[' .. SkinName .. ']')
+                        or GunModels:FindFirstChild(SkinName:gsub('-', ' '))
+                        or GunModels:FindFirstChild(SkinName:gsub('-', ''))
+                        if Model then
+                            if Model:IsA('MeshPart') then
+                                Mesh = Model
+                            elseif Model:IsA('Model') then
+                                Mesh = Model:FindFirstChildOfClass('MeshPart')
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if not NewMesh and Mesh then
+            if typeof(Mesh) == 'Instance' and Mesh:IsA('MeshPart') then
+                NewMesh = Mesh
+            elseif type(Mesh) == 'table' then
+                for _, Child in next, Mesh do
+                    if typeof(Child) == 'Instance' and Child:IsA('MeshPart') then
+                        if Child.Name == Tool.Name then
+                            NewMesh = Child
+                            break
+                        end
+                        local Lowered = Child.Name:lower()
+                        if Lowered:find('rpg') and WeaponName == 'rpg' then
+                            NewMesh = Child; break
+                        elseif Lowered:find('aug') and WeaponName == 'aug' then
+                            NewMesh = Child; break
+                        elseif Lowered:find('tac') and WeaponName == 'tacticalshotgun' then
+                            NewMesh = Child; break
+                        elseif Lowered:find('rev') and WeaponName == 'revolver' then
+                            NewMesh = Child; break
+                        elseif (Lowered:find('db') or Lowered:find('double')) and (WeaponName == 'double-barrel sg' or WeaponName == 'double-barrelsg') then
+                            NewMesh = Child; break
+                        elseif Lowered:find('knife') and IsKnife then
+                            NewMesh = Child; break
+                        elseif Lowered:find('rifle') and WeaponName == 'rifle' then
+                            NewMesh = Child; break
+                        elseif Lowered:find('flame') and WeaponName == 'flamethrower' then
+                            NewMesh = Child; break
+                        elseif Lowered:find('drum') and WeaponName == 'drumgun' then
+                            NewMesh = Child; break
+                        elseif Lowered:find('ak') and WeaponName == 'ak47' then
+                            NewMesh = Child; break
+                        elseif Lowered:find('smg') and WeaponName == 'smg' then
+                            NewMesh = Child; break
+                        elseif Lowered:find('lmg') and WeaponName == 'lmg' then
+                            NewMesh = Child; break
+                        elseif Lowered:find('p90') and WeaponName == 'p90' then
+                            NewMesh = Child; break
+                        elseif Lowered == 'ar' and WeaponName == 'ar' then
+                            NewMesh = Child; break
+                        elseif WeaponName == 'silencerar' and (Lowered:find('silencerar') or Lowered:find('silencedar')) then
+                            NewMesh = Child; break
+                        elseif WeaponName == 'silencer' and Lowered:find('silencer') and not Lowered:find('silencerar') and not Lowered:find('silencedar') then
+                            NewMesh = Child; break
+                        elseif WeaponName == 'silencer' and (Lowered:find('supp') or Lowered == 'sil') then
+                            NewMesh = Child; break
+                        elseif WeaponName == 'silencer' and Lowered:find('glock') then
+                            NewMesh = Child; break
+                        elseif Lowered:find('glock') and WeaponName == 'glock' then
+                            NewMesh = Child; break
+                        elseif Lowered:find('deagle') and WeaponName == 'deagle' then
+                            NewMesh = Child; break
+                        end
+                    end
+                end
+                if not NewMesh then
+                    NewMesh = FindSourceMesh(SkinName, Tool.Name, false)
+                        or FindSourceMesh(SkinName, WeaponName, false)
+                        or FindSourceMesh(SkinName, '[' .. WeaponName .. ']', false)
+                end
+                if not NewMesh then
+                    local CleanWeapon = WeaponName:gsub('[^%w]', '')
+                    local Matched = { }
+                    for _, Child in next, Mesh do
+                        if typeof(Child) == 'Instance' and Child:IsA('MeshPart') then
+                            local CleanChild = Child.Name:lower():gsub('[^%w]', '')
+                            if CleanChild == CleanWeapon or CleanChild:find(CleanWeapon, 1, true) then
+                                table.insert(Matched, Child)
+                            end
+                        end
+                    end
+                    if #Matched == 1 then
+                        NewMesh = Matched[1]
+                    elseif #Matched > 1 then
+                        NewMesh = Matched[1]
+                    end
+                end
+            end
+        end
+        if not NewMesh and not IsKnife then
+            NewMesh = FindSourceMesh(SkinName, Tool.Name, false)
+                or FindSourceMesh(SkinName, WeaponName, false)
+                or FindSourceMesh(SkinName, '[' .. WeaponName .. ']', false)
+        end
+        if NewMesh then
+            local SkinCFrame = GetSkinCFrame(Tool, SkinName, SkinInfo)
+            local NewFake = ApplyGunSkinMesh(Default, NewMesh, SkinCFrame)
+            AppliedSkins[Tool].HiddenParts = HideOriginalGunMeshes(Tool, Default, NewFake)
+            table.insert(AppliedSkins[Tool].ClonedChildren, NewFake)
+        elseif SkinInfo and SkinInfo.TextureID then
+            local TextureValue = SkinInfo.TextureID
+            if typeof(TextureValue) == 'Instance' and TextureValue:IsA('MeshPart') then
+                local SkinCFrame = GetSkinCFrame(Tool, SkinName, SkinInfo)
+                local Clone = ApplyGunSkinMesh(Default, TextureValue, SkinCFrame)
+                AppliedSkins[Tool].HiddenParts = HideOriginalGunMeshes(Tool, Default, Clone)
+                table.insert(AppliedSkins[Tool].ClonedChildren, Clone)
+            elseif type(TextureValue) == 'string' then
+                AppliedSkins[Tool].HiddenParts = HideOriginalGunMeshes(Tool, Default, nil)
+                Default.TextureID = TextureValue
+                Default.Transparency = 0
+            end
+        else
+            if not IsKnife then
+                RemoveSkinFromTool(Tool)
+                return
+            end
+            if IsKnifeSkin(SkinName) then
+                return
+            end
+            AppliedSkins[Tool].OriginalLTM = Default.LocalTransparencyModifier
+            Default.LocalTransparencyModifier = 1
+            if SkinInfo and SkinInfo.CFrame and typeof(SkinInfo.CFrame) == 'CFrame' then
+                local GcfOk, OrigGcf = pcall(function() return Tool.GripCFrame end)
+                AppliedSkins[Tool].OriginalGripCFrame = GcfOk and OrigGcf or CFrame.new()
+                pcall(function() Tool.GripCFrame = SkinInfo.CFrame end)
+            end
+        end
+        for _, Child in next, Handle:GetChildren() do
+            if #Child.Name == 0 then
+                Child:Destroy()
+            end
+        end
+        ApplyGunHandleParticle(Tool, Handle, SkinName)
+        if IsKnife and SkinAssets then
+            local SkinScripts = SkinAssets:FindFirstChild('SkinScripts')
+            if SkinScripts then
+                for _, Folder in next, SkinScripts:GetChildren() do
+                    if Folder.Name:lower():gsub(' ', '') == SkinName:lower():gsub(' ', '') then
+                        local Sound = Folder:FindFirstChildOfClass('Sound')
+                        if Sound then
+                            local Cloned = Sound:Clone()
+                            Cloned.Name = '\0'
+                            Cloned.Parent = Handle
+                            Cloned:Play()
+                            game.Debris:AddItem(Cloned, 3)
+                        end
+                        for _, Obj in next, Folder:GetDescendants() do
+                            if Obj:IsA('Sound') or Obj:IsA('StringValue') then
+                                local ObjLower = Obj.Name:lower():gsub(' ', '')
+                                local Val = Obj:IsA('Sound') and Obj.SoundId or Obj.Value
+                                if not Val or Val == '' then continue end
+                                if ObjLower == 'equipsfx' or ObjLower == 'sfx' or ObjLower == 'equip' or ObjLower == 'tantoequip' then
+                                    AppliedSkins[Tool].KnifeEquipSound = Val
+                                elseif ObjLower == 'attacksfx' or ObjLower == 'attack' then
+                                    AppliedSkins[Tool].KnifeAttackSound = Val
+                                end
+                            end
+                        end
+                        break
+                    end
+                end
+            end
+            local SkinScriptsStorage = SkinAssets:FindFirstChild('SkinScriptsStorage')
+            if SkinScriptsStorage then
+                for _, Folder in next, SkinScriptsStorage:GetChildren() do
+                    if Folder.Name:lower():gsub(' ', '') == SkinName:lower():gsub(' ', '') then
+                        for _, Anim in next, Folder:GetDescendants() do
+                            if Anim:IsA('Animation') then
+                                local AnimLower = Anim.Name:lower():gsub(' ', '')
+                                if AnimLower == 'knife' or AnimLower == 'equipknife' or AnimLower == 'knifeequip' or AnimLower == 'tantoequip' then
+                                    AppliedSkins[Tool].KnifeEquipAnim = Anim
+                                    break
+                                end
+                            end
+                        end
+                        break
+                    end
+                end
+            end
+            local KnifeSkinAnimation = SkinAssets:FindFirstChild('KnifeSkinAnimation')
+            if KnifeSkinAnimation then
+                for _, Folder in next, KnifeSkinAnimation:GetChildren() do
+                    if Folder.Name:lower():gsub(' ', '') == SkinName:lower():gsub(' ', '') then
+                        for _, Anim in next, Folder:GetDescendants() do
+                            if Anim:IsA('Animation') then
+                                AppliedSkins[Tool].KnifeAttackAnim = Anim
+                                break
+                            end
+                        end
+                        break
+                    end
+                end
+            end
+        end
+        if IsKnife and SkinName:lower():gsub(' ', '') == 'goldenagetanto' then
+            if not AppliedSkins[Tool].KnifeEquipAnim then
+                local Anim = Instance.new('Animation')
+                Anim.AnimationId = 'rbxassetid://13473404819'
+                AppliedSkins[Tool].KnifeEquipAnim = Anim
+            else
+                AppliedSkins[Tool].KnifeEquipAnim.AnimationId = 'rbxassetid://13473404819'
+            end
+        end
+        if IsKnife and (SkinName:lower():gsub(' ', '') == 'gpoknife' or SkinName:lower():gsub(' ', '') == 'gpoknifeprestige') then
+            if not AppliedSkins[Tool].KnifeEquipAnim then
+                local Anim = Instance.new('Animation')
+                Anim.AnimationId = 'rbxassetid://102007904524177'
+                AppliedSkins[Tool].KnifeEquipAnim = Anim
+            else
+                AppliedSkins[Tool].KnifeEquipAnim.AnimationId = 'rbxassetid://102007904524177'
+            end
+        end
+        local SoundId = GetShootSound(Tool.Name, SkinName)
+        if SoundId and AppliedSkins[Tool].ShootSound then
+            AppliedSkins[Tool].ShootSound.SoundId = SoundId
+        end
+    end
+
+    local function GetDesiredSkin(Tool)
+        local SkinChangerCfg = GetSkinChangerCfg()
+        if not SkinChangerCfg or not SkinChangerCfg['Enabled'] then return nil end
+        local Skins = SkinChangerCfg['Skins']
+        if not Skins then return nil end
+        local ConfiguredSkin = Skins[Tool.Name]
+        if not ConfiguredSkin then
+            local Stripped = Tool.Name:gsub('%[', ''):gsub('%]', '')
+            ConfiguredSkin = Skins['[' .. Stripped .. ']']
+        end
+        if not ConfiguredSkin or ConfiguredSkin == '' or ConfiguredSkin == 'None' or ConfiguredSkin == 'Default' then return nil end
+        return ConfiguredSkin
+    end
+
+    local function ProcessTool(Tool)
+        local DesiredSkin = GetDesiredSkin(Tool)
+        local CurrentApplied = AppliedSkins[Tool]
+        local CurrentSkin = CurrentApplied and CurrentApplied.SkinName or nil
+
+        if CurrentSkin == DesiredSkin then return end
+
+        if CurrentApplied then
+            RemoveSkinFromTool(Tool)
+        end
+
+        if not DesiredSkin then
+            ToolRegistry[Tool] = nil
+            return
+        end
+
+        ToolRegistry[Tool] = DesiredSkin
+        local IsKnife = Tool.Name:lower():find('knife') ~= nil or Tool.Name == '[Knife]'
+        if IsKnife and IsKnifeSkin(DesiredSkin) then
+            if AppliedSkins[Tool] then
+                RemoveSkinFromTool(Tool)
+            end
+            local Handle = Tool:FindFirstChild('Handle')
+            if not Handle then return end
+            AppliedSkins[Tool] = {
+                SkinName = DesiredSkin,
+                OriginalSkinName = Handle:GetAttribute('SkinName') or '',
+                ClonedChildren = { },
+                Connections = { },
+            }
+            Handle:SetAttribute('SkinName', DesiredSkin)
+            local AttrConn = Handle:GetAttributeChangedSignal('SkinName'):Connect(function()
+                if Handle:GetAttribute('SkinName') ~= DesiredSkin then
+                    Handle:SetAttribute('SkinName', DesiredSkin)
+                end
+            end)
+            table.insert(AppliedSkins[Tool].Connections, AttrConn)
+            ApplyGunHandleParticle(Tool, Handle, DesiredSkin)
+            if not KnifeData[Tool] or not KnifeData[Tool].hiddenParts then
+                KnifeData[Tool] = KnifeData[Tool] or { }
+                KnifeData[Tool].hiddenParts = HideKnifeDefaults(Tool, nil)
+            end
+            local EquipConn
+            EquipConn = Tool.Equipped:Connect(function()
+                if not AppliedSkins[Tool] then
+                    if EquipConn then EquipConn:Disconnect() end
+                    return
+                end
+                local Char = Tool.Parent
+                if Char ~= LocalPlayer.Character then return end
+                ApplyKnife(Char, Tool, DesiredSkin)
+            end)
+            if not AppliedSkins[Tool].Connections then
+                AppliedSkins[Tool].Connections = { }
+            end
+            table.insert(AppliedSkins[Tool].Connections, EquipConn)
+            if LocalPlayer.Character and Tool.Parent == LocalPlayer.Character then
+                ApplyKnife(LocalPlayer.Character, Tool, DesiredSkin)
+            end
+            if AppliedSkins[Tool] and (AppliedSkins[Tool].KnifeAttackAnim or AppliedSkins[Tool].KnifeAttackSound) then
+                local AttackConn
+                AttackConn = Tool.Activated:Connect(function()
+                    local SkinData = AppliedSkins[Tool]
+                    if not SkinData then
+                        if AttackConn then AttackConn:Disconnect() end
+                        return
+                    end
+                    if SkinData.KnifeAttackSound then
+                        local Sound = Instance.new('Sound')
+                        Sound.SoundId = SkinData.KnifeAttackSound
+                        Sound.Volume = 1
+                        Sound.Parent = Tool:FindFirstChild('Handle') or Tool
+                        Sound:Play()
+                        game.Debris:AddItem(Sound, 3)
+                    end
+                    if SkinData.KnifeAttackAnim then
+                        local Character = LocalPlayer.Character
+                        if Character then
+                            local Humanoid = Character:FindFirstChildOfClass('Humanoid')
+                            if Humanoid then
+                                local Animator = Humanoid:FindFirstChildOfClass('Animator')
+                                if not Animator then
+                                    Animator = Instance.new('Animator')
+                                    Animator.Parent = Humanoid
+                                end
+                                local Anim = Instance.new('Animation')
+                                Anim.AnimationId = SkinData.KnifeAttackAnim.AnimationId
+                                local Track = Animator:LoadAnimation(Anim)
+                                Track.Priority = Enum.AnimationPriority.Action
+                                Track:Play()
+                                Anim:Destroy()
+                            end
+                        end
+                    end
+                end)
+                table.insert(AppliedSkins[Tool].Connections, AttackConn)
+            end
+        else
+            ApplySkinToTool(Tool, DesiredSkin)
+            if not AppliedSkins[Tool] then return end
+            local EquipConn
+            EquipConn = Tool.Equipped:Connect(function()
+                if not AppliedSkins[Tool] then
+                    if EquipConn then EquipConn:Disconnect() end
+                    return
+                end
+                local Char = Tool.Parent
+                if Char ~= LocalPlayer.Character then return end
+                ApplySkinToTool(Tool, DesiredSkin)
+            end)
+            if not AppliedSkins[Tool].Connections then
+                AppliedSkins[Tool].Connections = { }
+            end
+            table.insert(AppliedSkins[Tool].Connections, EquipConn)
+            if LocalPlayer.Character and Tool.Parent == LocalPlayer.Character then
+                ApplySkinToTool(Tool, DesiredSkin)
             end
         end
     end
 
-    local function watchCharacter(character)
-        if not character then return end
-        local children = character:GetChildren()
-        for i = 1, #children do
-            local v = children[i]
-            if v:IsA("Tool") then setupTool(v) end
+    local function ProcessCharacter(Character)
+        if not Character then return end
+        for _, Child in next, Character:GetChildren() do
+            if Child:IsA('Tool') then
+                ProcessTool(Child)
+            end
         end
-        
-        character.ChildAdded:Connect(function(v)
-            if v:IsA("Tool") then setupTool(v) end
+        Character.ChildAdded:Connect(function(Child)
+            if Child:IsA('Tool') then
+                task.wait(0.1)
+                ProcessTool(Child)
+            end
         end)
     end
 
-    watchCharacter(LocalPlayer.Character)
-    LocalPlayer.CharacterAdded:Connect(watchCharacter)
-
-    local backpack = LocalPlayer:WaitForChild("Backpack")
-    for _, tool in ipairs(backpack:GetChildren()) do
-        if tool:IsA("Tool") then setupTool(tool) end
+    local function ProcessBackpack(Backpack)
+        if not Backpack then return end
+        for _, Tool in next, Backpack:GetChildren() do
+            if Tool:IsA('Tool') then
+                ProcessTool(Tool)
+            end
+        end
+        Backpack.ChildAdded:Connect(function(Tool)
+            if Tool:IsA('Tool') then
+                task.wait(0.1)
+                ProcessTool(Tool)
+            end
+        end)
     end
 
-    backpack.ChildAdded:Connect(function(child)
-        if child:IsA("Tool") then setupTool(child) end
+    LoadSkinData()
+    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local Backpack = LocalPlayer:WaitForChild('Backpack', 5)
+    ProcessCharacter(Character)
+    if Backpack then ProcessBackpack(Backpack) end
+    LocalPlayer.CharacterAdded:Connect(function(NewCharacter)
+        task.wait(0.5)
+        ProcessCharacter(NewCharacter)
+        local NewBackpack = LocalPlayer:WaitForChild('Backpack', 5)
+        if NewBackpack then ProcessBackpack(NewBackpack) end
+    end)
+
+    local function RescanAllTools()
+        local Char = LocalPlayer.Character
+        if Char then
+            for _, Child in next, Char:GetChildren() do
+                if Child:IsA('Tool') then ProcessTool(Child) end
+            end
+        end
+        local Bp = LocalPlayer:FindFirstChildOfClass('Backpack')
+        if Bp then
+            for _, Child in next, Bp:GetChildren() do
+                if Child:IsA('Tool') then ProcessTool(Child) end
+            end
+        end
+        for Tool in next, ToolRegistry do
+            if not Tool.Parent then
+                ToolRegistry[Tool] = nil
+            end
+        end
+    end
+
+    local LastSkinCfgSnapshot = ''
+    RunService.Heartbeat:Connect(function()
+        local SkinCfg = GetSkinChangerCfg()
+        local Snapshot = tostring(SkinCfg['Enabled'])
+        local Skins = SkinCfg['Skins']
+        if Skins then
+            for K, V in next, Skins do
+                Snapshot = Snapshot .. K .. tostring(V)
+            end
+        end
+        if Snapshot ~= LastSkinCfgSnapshot then
+            LastSkinCfgSnapshot = Snapshot
+            RescanAllTools()
+        end
     end)
 end
 
@@ -2115,6 +2863,16 @@ local function FullCleanup()
         pcall(function() conn:Disconnect() end)
     end
     state.doubleTapConnections = {}
+    
+    -- clean up panic ground
+    if state.panicGroundConnection then
+        pcall(function() state.panicGroundConnection:Disconnect() end)
+        state.panicGroundConnection = nil
+    end
+    state.panicGroundActive = false
+    
+    -- clean up inventory sorter
+    state.sorterActive = false
     
     local connections = {}
     for _, service in pairs({RunService, UserInputService, Players}) do
@@ -2304,6 +3062,9 @@ local function FullCleanup()
     state.hopsMonitor = nil
     state.hopsHumanoid = nil
     state.doubleTapConnections = {}
+    state.panicGroundActive = false
+    state.panicGroundConnection = nil
+    state.sorterActive = false
     
     for _, conn in pairs(state.delayConnections) do
         pcall(function() conn:Disconnect() end)
