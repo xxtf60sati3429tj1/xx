@@ -324,9 +324,12 @@ local function isInPreciseFOV(targetChar)
     return false
 end
 
+script_key = shared.Scare.Auth.Key
+
 if LRM_INIT_SCRIPT then
     LRM_INIT_SCRIPT(function()
-        script_key = shared.Scare.Auth.Key;
+        -- this is redundant now but keep it for compatibility
+        script_key = shared.Scare.Auth.Key
     end)
 end
 
