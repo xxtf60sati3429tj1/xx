@@ -1136,6 +1136,96 @@ end
 
 SetupJumpFeatures()
 
+-- hops system
+local function SetupHops()
+    local Config = shared.Scare
+    if not Config then return end
+    
+    local HopsCfg = Config['Hops']
+    if not HopsCfg or not HopsCfg['Enabled'] then return end
+    
+    local percent = HopsCfg['Percent'] or 355
+    local jumpPower = 50 * (percent / 100)
+    jumpPower = math.clamp(jumpPower, 1, 1000)
+    
+    local userInputService = game:GetService("UserInputService")
+    local player = game.Players.LocalPlayer
+    local activeConnection = nil
+    local activeMonitor = nil
+    local activeHumanoid = nil
+    local activeOriginalPower = 50
+
+    local function CleanupJump()
+        if activeConnection then
+            activeConnection:Disconnect()
+            activeConnection = nil
+        end
+        if activeMonitor then
+            activeMonitor = nil
+        end
+        activeHumanoid = nil
+    end
+
+    local function SetupJump(character)
+        if not character then return end
+        
+        CleanupJump()
+        
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then
+            humanoid = character:WaitForChild("Humanoid", 5)
+            if not humanoid then return end
+        end
+        
+        activeHumanoid = humanoid
+        activeOriginalPower = humanoid.JumpPower
+        
+        activeConnection = userInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if input.KeyCode == Enum.KeyCode.Space then
+                if not activeHumanoid or not activeHumanoid.Parent then return end
+                
+                activeHumanoid.JumpPower = jumpPower
+                
+                local success = pcall(function()
+                    activeHumanoid:Jump()
+                end)
+                
+                if not success then
+                    pcall(function()
+                        activeHumanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    end)
+                end
+                
+                task.wait()
+                if activeHumanoid and activeHumanoid.Parent then
+                    activeHumanoid.JumpPower = activeOriginalPower
+                end
+            end
+        end)
+        
+        activeMonitor = task.spawn(function()
+            while activeHumanoid and activeHumanoid.Parent do
+                task.wait(0.1)
+                if activeHumanoid.JumpPower ~= activeOriginalPower and activeHumanoid.JumpPower ~= jumpPower then
+                    activeOriginalPower = activeHumanoid.JumpPower
+                end
+            end
+        end)
+    end
+
+    local character = player.Character or player.CharacterAdded:Wait()
+    SetupJump(character)
+
+    player.CharacterAdded:Connect(function(newChar)
+        newChar:WaitForChild("Humanoid", 5)
+        task.wait(0.1)
+        SetupJump(newChar)
+    end)
+end
+
+SetupHops()
+
 local function SetupAntiStomp()
     local PanicSystem = shared.Scare and shared.Scare['Panic System']
     if not PanicSystem or not PanicSystem['Anti Stomp'] then return end
