@@ -1,6 +1,5 @@
 
 
-
 task.spawn(function()
     local Players = game:GetService("Players")
     local LocalPlayer = Players.LocalPlayer
@@ -18,7 +17,7 @@ task.spawn(function()
     end
 
     local function checkMod(Player)
-        local Config = shared.Reapsprivate
+        local Config = shared.Sound
         if not Config then return false end
         
         local ModDetection = Config["Mod Detection"]
@@ -43,7 +42,7 @@ task.spawn(function()
         end
         
         if ModDetection["Notify"] == true then
-            ShowNotification("Reapsprivate.lol", "A moderator has joined your game!", 5)
+            ShowNotification("Sound", "A moderator has joined your game!", 5)
             return true
         end
         
@@ -84,7 +83,7 @@ local MAX_CACHE_ENTRIES = 10
 local frameCounter = 0
 
 local function getFOVConfig(mode, fovType)
-    local Settings = shared.Reapsprivate
+    local Settings = shared.Sound
     if not Settings then return nil end
     
     local cfg = Settings[mode]
@@ -376,7 +375,7 @@ local function isInPreciseFOVWithMargin(targetChar)
 end
 
 local function UpdateTriggerBot()
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     local TriggerCfg = Config and Config["Trigger Bot"]
     if not TriggerCfg or not TriggerCfg["Enabled"] then return end
     
@@ -544,7 +543,7 @@ local function UpdateTriggerBot()
 end
 
 local function GetTriggerCooldownForWeapon(weaponName)
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     if not Config then return 0.001 end
     local TriggerCfg = Config["Trigger Bot"]
     if not TriggerCfg then return 0.001 end
@@ -696,7 +695,7 @@ local function getCachedHitboxPoints(character)
 end
 
 local function UpdateTriggerBot()
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     local TriggerCfg = Config and Config["Trigger Bot"]
     if not TriggerCfg or not TriggerCfg["Enabled"] then return end
     
@@ -864,7 +863,7 @@ local function UpdateTriggerBot()
 end
 
 local function GetTriggerCooldownForWeapon(weaponName)
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     if not Config then return 0.001 end
     local TriggerCfg = Config["Trigger Bot"]
     if not TriggerCfg then return 0.001 end
@@ -989,7 +988,7 @@ local function IsTargetVisible(TargetPart)
 end
 
 local function CheckChecks(Player, mode)
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     if not Config then return true end
     
     local ModeCfg = Config[mode]
@@ -1022,7 +1021,7 @@ local function CheckChecks(Player, mode)
 end
 
 local function CheckChecksNoVisible(Player, mode)
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     if not Config then return true end
     
     local ModeCfg = Config[mode]
@@ -1262,7 +1261,7 @@ local function MakeHeadless(Character)
 end
 
 local function ApplyHeadless(Character)
-    local AvatarCfg = shared.Reapsprivate and shared.Reapsprivate['Avatar Modifications']
+    local AvatarCfg = shared.Sound and shared.Sound['Avatar Modifications']
     if not AvatarCfg then return end
     if not AvatarCfg['Headless'] then return end
     
@@ -1280,7 +1279,7 @@ local function ApplyHeadless(Character)
 end
 
 local function ApplyKorblox(Character)
-    local AvatarCfg = shared.Reapsprivate and shared.Reapsprivate['Avatar Modifications']
+    local AvatarCfg = shared.Sound and shared.Sound['Avatar Modifications']
     if not AvatarCfg then return end
     if not AvatarCfg['Korblox'] then return end
     if not Character then return end
@@ -1312,7 +1311,7 @@ local function ApplyKorblox(Character)
 end
 
 local function ApplySkinny(Character)
-    local AvatarCfg = shared.Reapsprivate and shared.Reapsprivate['Avatar Modifications']
+    local AvatarCfg = shared.Sound and shared.Sound['Avatar Modifications']
     if not AvatarCfg then return end
     if not AvatarCfg['Skinny'] then return end
     
@@ -1341,7 +1340,7 @@ local function ApplySkinny(Character)
 end
 
 local function ApplyAnimationSpoofer(Character)
-    local AvatarCfg = shared.Reapsprivate and shared.Reapsprivate['Avatar Modifications']
+    local AvatarCfg = shared.Sound and shared.Sound['Avatar Modifications']
     if not AvatarCfg then return end
     local AnimSpoofer = AvatarCfg['Animation Spoofer']
     if not AnimSpoofer or not AnimSpoofer['Enabled'] then return end
@@ -1383,7 +1382,7 @@ local function ApplyAnimationSpoofer(Character)
 end
 
 local function ApplyEmoteSpoofer(Character)
-    local AvatarCfg = shared.Reapsprivate and shared.Reapsprivate['Avatar Modifications']
+    local AvatarCfg = shared.Sound and shared.Sound['Avatar Modifications']
     if not AvatarCfg then return end
     local EmoteCfg = AvatarCfg['Emote Spoofer']
     if not EmoteCfg or not EmoteCfg['Enabled'] then return end
@@ -1433,7 +1432,7 @@ end
 local function SetupDelayModifications(Character)
     if not Character then return end
     
-    local DelayCfg = shared.Reapsprivate and shared.Reapsprivate['Delay Modification']
+    local DelayCfg = shared.Sound and shared.Sound['Delay Modification']
     if not DelayCfg or not DelayCfg['Enabled'] then return end
     
     local function ApplyDelay(Tool)
@@ -1504,7 +1503,7 @@ local function ApplyJumpPower(Character)
     local Humanoid = Character:FindFirstChildOfClass("Humanoid")
     if not Humanoid then return end
     
-    local JumpSettings = shared.Reapsprivate and shared.Reapsprivate['Jump Modifications']
+    local JumpSettings = shared.Sound and shared.Sound['Jump Modifications']
     if not JumpSettings or not JumpSettings['Enabled'] then return end
     
     local percent = JumpSettings['Percent'] or 100
@@ -1528,7 +1527,7 @@ local function SetupJumpPower()
 end
 
 local function SetupNoJumpCooldown()
-    local JumpSettings = shared.Reapsprivate and shared.Reapsprivate['Jump Modifications']
+    local JumpSettings = shared.Sound and shared.Sound['Jump Modifications']
     if not JumpSettings or not JumpSettings['No Jump Cooldown'] then return end
 
     local function HandleCooldown(Character)
@@ -1538,7 +1537,7 @@ local function SetupNoJumpCooldown()
         if not Humanoid then return end
 
         local function ApplyCooldownFix()
-            local JSettings = shared.Reapsprivate and shared.Reapsprivate['Jump Modifications']
+            local JSettings = shared.Sound and shared.Sound['Jump Modifications']
             if Humanoid.JumpPower == 0 then
                 if JSettings and JSettings['Enabled'] then
                     local percent = JSettings['Percent'] or 100
@@ -1573,7 +1572,7 @@ local function SetupNoJumpCooldown()
 end
 
 local function SetupWalljump()
-    local JumpSettings = shared.Reapsprivate and shared.Reapsprivate['Jump Modifications']
+    local JumpSettings = shared.Sound and shared.Sound['Jump Modifications']
     if not JumpSettings then return end
     local WalljumpCfg = JumpSettings['Walljump']
     if not WalljumpCfg or not WalljumpCfg['Enabled'] then return end
@@ -1659,7 +1658,7 @@ local function SetupWalljump()
                             state.walljumpResetConnection:Disconnect()
                             state.walljumpResetConnection = nil
                         end
-                        local JSettings = shared.Reapsprivate and shared.Reapsprivate['Jump Modifications']
+                        local JSettings = shared.Sound and shared.Sound['Jump Modifications']
                         if JSettings and JSettings['Enabled'] then
                             local percent = JSettings['Percent'] or 100
                             Humanoid.JumpPower = 50 * (percent / 100)
@@ -1684,7 +1683,7 @@ local function SetupJumpFeatures()
     SetupJumpPower()
     SetupNoJumpCooldown()
     
-    local JumpSettings = shared.Reapsprivate and shared.Reapsprivate['Jump Modifications']
+    local JumpSettings = shared.Sound and shared.Sound['Jump Modifications']
     if JumpSettings then
         local WalljumpCfg = JumpSettings['Walljump']
         if WalljumpCfg and WalljumpCfg['Enabled'] then SetupWalljump() end
@@ -1694,7 +1693,7 @@ end
 SetupJumpFeatures()
 
 local function SetupHops()
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     if not Config then return end
     
     local HopsCfg = Config['Hops']
@@ -1776,7 +1775,7 @@ end
 SetupHops()
 
 local function GetDamageOverrideMode(Tool)
-    local WeaponMods = shared.Reapsprivate and shared.Reapsprivate['Weapon Modifications']
+    local WeaponMods = shared.Sound and shared.Sound['Weapon Modifications']
     if not WeaponMods then return nil end
     
     local DamageCfg = WeaponMods['Damage Override']
@@ -1822,7 +1821,7 @@ local function ResolveDamageOverride(Tool, VisualHitInstance)
 end
 
 local function SetupDoubleTap()
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     if not Config then return end
     
     local DoubleTapCfg = Config['Double Tap']
@@ -1834,7 +1833,7 @@ local function SetupDoubleTap()
     local function GetWeaponCooldown(Tool)
         local CD = Tool:FindFirstChild('ShootingCooldown')
         if CD then return CD.Value end
-        local DelayCfg = shared.Reapsprivate and shared.Reapsprivate['Delay Modification']
+        local DelayCfg = shared.Sound and shared.Sound['Delay Modification']
         if DelayCfg and DelayCfg['Enabled'] then
             local Weapons = DelayCfg['Weapons'] or {}
             local ToolName = Tool.Name
@@ -1845,7 +1844,7 @@ local function SetupDoubleTap()
     end
     
     local function GetDamageOverrideTarget(Weapon, CurrentHit)
-        local WeaponMods = shared.Reapsprivate and shared.Reapsprivate['Weapon Modifications']
+        local WeaponMods = shared.Sound and shared.Sound['Weapon Modifications']
         if not WeaponMods then return CurrentHit end
         
         local DamageCfg = WeaponMods['Damage Override']
@@ -1899,8 +1898,8 @@ local function SetupDoubleTap()
             end
             if not IsDoubleTapWeapon then return end
             
-            if Tool:GetAttribute("ReapsprivateDoubleTap") then return end
-            Tool:SetAttribute("ReapsprivateDoubleTap", true)
+            if Tool:GetAttribute("SoundDoubleTap") then return end
+            Tool:SetAttribute("SoundDoubleTap", true)
             
             local LastFire = 0
             local Cooldown = GetWeaponCooldown(Tool)
@@ -1948,7 +1947,7 @@ local function SetupDoubleTap()
             end
             
             local function GetFuturePrediction(Tool)
-                local FutureCfg = shared.Reapsprivate and shared.Reapsprivate['Future']
+                local FutureCfg = shared.Sound and shared.Sound['Future']
                 if not FutureCfg or not FutureCfg['Enabled'] then return nil end
                 local Weapons = FutureCfg['Weapons'] or {}
                 for WeaponName, Values in pairs(Weapons) do
@@ -1964,7 +1963,7 @@ local function SetupDoubleTap()
             end
             
             local function ApplyDamageOverride(Weapon, HitInstance)
-                local WeaponMods = shared.Reapsprivate and shared.Reapsprivate['Weapon Modifications']
+                local WeaponMods = shared.Sound and shared.Sound['Weapon Modifications']
                 if not WeaponMods then return HitInstance end
                 local DamageCfg = WeaponMods['Damage Override']
                 if not DamageCfg or not DamageCfg['Enabled'] then return HitInstance end
@@ -2152,7 +2151,7 @@ end
 SetupDoubleTap()
 
 local function SetupAntiStomp()
-    local PanicSystem = shared.Reapsprivate and shared.Reapsprivate['Panic System']
+    local PanicSystem = shared.Sound and shared.Sound['Panic System']
     if not PanicSystem or not PanicSystem['Anti Stomp'] then return end
     
     local function HandleAntiStomp(Character)
@@ -2176,7 +2175,7 @@ local function SetupAntiStomp()
         if not KO then return end
         
         state.antiStompKOConnection = KO.Changed:Connect(function(Knocked)
-            local PanicSystem = shared.Reapsprivate and shared.Reapsprivate['Panic System']
+            local PanicSystem = shared.Sound and shared.Sound['Panic System']
             if not PanicSystem or not PanicSystem['Anti Stomp'] then return end
             
             if not Knocked then return end
@@ -2206,7 +2205,7 @@ local function SetupAntiStomp()
 end
 
 local function SetupPanicGround()
-    local PanicSystem = shared.Reapsprivate and shared.Reapsprivate['Panic System']
+    local PanicSystem = shared.Sound and shared.Sound['Panic System']
     if not PanicSystem then return end
     
     local PanicGround = PanicSystem['Panic Ground']
@@ -2253,7 +2252,7 @@ local function SetupPanicGround()
 end
 
 local function SetupAutoReset()
-    local PanicSystem = shared.Reapsprivate and shared.Reapsprivate['Panic System']
+    local PanicSystem = shared.Sound and shared.Sound['Panic System']
     if not PanicSystem then return end
     
     local AutoReset = PanicSystem['Auto Reset']
@@ -2281,7 +2280,7 @@ local function SetupAntiFall(Character)
     local Humanoid = Character:FindFirstChildOfClass('Humanoid') or Character:WaitForChild('Humanoid', 10)
     if not Humanoid then return end
     
-    local JumpSettings = shared.Reapsprivate and shared.Reapsprivate['Jump Modifications']
+    local JumpSettings = shared.Sound and shared.Sound['Jump Modifications']
     if not JumpSettings then return end
     
     Humanoid.StateChanged:Connect(function(_, NewState)
@@ -2331,7 +2330,7 @@ end
 SetupAvatarHandlers()
 
 local function SetupInventorySorter()
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     if not Config then return end
     
     local SorterCfg = Config["Inventory Sorter"]
@@ -2364,7 +2363,7 @@ local function SetupInventorySorter()
             end
         end
         
-        local Slots = SorterCfg["Weapons"]
+        local Slots = SorterCfg["Items"]
         
         for slotIndex, slotName in pairs(Slots) do
             for i = 1, #temp do
@@ -2650,10 +2649,10 @@ local DaHoodPlaceId = {
 
 if DaHoodPlaceId[game.PlaceId] then
     local function GetSkinChangerCfg()
-        if not shared.Reapsprivate or not shared.Reapsprivate['Skin Changer'] then
+        if not shared.Sound or not shared.Sound['Skin Changer'] then
             return { Enabled = false, Skins = {} }
         end
-        local cfg = shared.Reapsprivate['Skin Changer']
+        local cfg = shared.Sound['Skin Changer']
         local skins = {}
         for k, v in pairs(cfg) do
             if k ~= 'Enabled' and k ~= 'Beam Color' then
@@ -3178,9 +3177,7 @@ if DaHoodPlaceId[game.PlaceId] then
             return SoundValue.Value
         end
         return nil
-    end
-
-    local function ApplyGunHandleParticle(Tool, Handle, SkinName)
+    end    local function ApplyGunHandleParticle(Tool, Handle, SkinName)
         if not SkinAssets or not Tool or not Handle then return end
         local Data = AppliedSkins[Tool]
         if not Data then return end
@@ -3895,7 +3892,7 @@ local function FullCleanup()
             for _, connection in next, connectionsList do
                 if connection and connection.Function then
                     local funcString = tostring(connection.Function)
-                    if funcString:find("Reapsprivate") or funcString:find("Update") or funcString:find("Validate") then
+                    if funcString:find("Sound") or funcString:find("Update") or funcString:find("Validate") then
                         table.insert(connections, connection)
                     end
                 end
@@ -3964,7 +3961,7 @@ local function FullCleanup()
     for _, gui in pairs(CoreGui:GetChildren()) do
         if gui and gui:IsA("ScreenGui") then
             local name = gui.Name
-            if name == "ReapsprivateUI" or name == "Reapsprivate" then
+            if name == "SoundUI" or name == "Sound" then
                 pcall(function() gui:Destroy() end)
             end
         end
@@ -4009,8 +4006,8 @@ local function FullCleanup()
     for _, v in next, getgc and getgc() or {} do
         if type(v) == "table" then
             pcall(function()
-                if rawget(v, "Reapsprivate") then
-                    rawset(v, "Reapsprivate", nil)
+                if rawget(v, "Sound") then
+                    rawset(v, "Sound", nil)
                 end
                 if rawget(v, "State") and rawget(v, "Targets") then
                     rawset(v, "State", nil)
@@ -4023,15 +4020,15 @@ local function FullCleanup()
         if type(tbl) ~= "table" then return end
         for k, v in pairs(tbl) do
             if type(v) == "table" then cleanEnvironment(v) end
-            if type(k) == "string" and (k:find("Reapsprivate") or k:find("State") or k:find("Target")) then
+            if type(k) == "string" and (k:find("Sound") or k:find("State") or k:find("Target")) then
                 pcall(function() tbl[k] = nil end)
             end
         end
     end
     cleanEnvironment(getfenv and getfenv() or {})
     
-    shared.Reapsprivate = nil
-    getgenv().Reapsprivate = nil
+    shared.Sound = nil
+    getgenv().Sound = nil
     
     state.silentactive = false
     state.silentTarget = nil
@@ -4120,7 +4117,7 @@ local function FullCleanup()
 end
 
 local function GetKeybind()
-    local Settings = shared.Reapsprivate
+    local Settings = shared.Sound
     if not Settings then return nil end
     local keybind = Settings['Keybind']
     if not keybind then return nil end
@@ -4128,7 +4125,7 @@ local function GetKeybind()
 end
 
 local function GetSilentKeybind()
-    local Settings = shared.Reapsprivate
+    local Settings = shared.Sound
     if not Settings then return nil end
     local keybind = Settings['Keybind']
     if not keybind then return nil end
@@ -4140,7 +4137,7 @@ local function GetSilentKeybind()
 end
 
 local function GetTriggerKeybind()
-    local Settings = shared.Reapsprivate
+    local Settings = shared.Sound
     if not Settings then return nil end
     local keybind = Settings['Keybind']
     if not keybind then return nil end
@@ -4152,7 +4149,7 @@ local function GetTriggerKeybind()
 end
 
 local function GetCameraKeybind()
-    local Settings = shared.Reapsprivate
+    local Settings = shared.Sound
     if not Settings then return nil end
     local keybind = Settings['Keybind']
     if not keybind then return nil end
@@ -4164,7 +4161,7 @@ local function GetCameraKeybind()
 end
 
 local function GetSelectingDistance(mode)
-    local Settings = shared.Reapsprivate
+    local Settings = shared.Sound
     if not Settings then return 0 end
     local cfg = Settings[mode]
     if not cfg then return 0 end
@@ -4175,7 +4172,7 @@ local function GetSelectingDistance(mode)
 end
 
 local function GetTriggerCooldownForWeapon(weaponName)
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     if not Config then return 0.001 end
     local TriggerCfg = Config["Trigger Bot"]
     if not TriggerCfg then return 0.001 end
@@ -4189,7 +4186,7 @@ local function GetTriggerCooldownForWeapon(weaponName)
 end
 
 local function IsSilentHitpartClosestPoint()
-    local Settings = shared.Reapsprivate
+    local Settings = shared.Sound
     if not Settings then return false end
     local silentCfg = Settings['Silent Aimbot']
     if not silentCfg then return false end
@@ -4223,7 +4220,7 @@ local function getClosestPoint(character, cfgOverride)
     local ray = cam:ViewportPointToRay(mouseX, mouseY)
     if not ray then return nil end
 
-    local Settings = shared.Reapsprivate
+    local Settings = shared.Sound
     local cfg = cfgOverride
     if not cfg then
         local silentCfg = Settings and Settings['Silent Aimbot']
@@ -4303,10 +4300,10 @@ local function SetupMovementModifications()
     local speedConnection = nil
     
     local function getCurrentMultiplier()
-        local MovementSettings = shared.Reapsprivate and shared.Reapsprivate['Movement Modifications']
+        local MovementSettings = shared.Sound and shared.Sound['Movement Modifications']
         if not MovementSettings then return 1 end
         
-        local MovementCfg = MovementSettings['Core']
+        local MovementCfg = MovementSettings['Player Conditions']
         if not MovementCfg then return 1 end
         
         local Character = LocalPlayer.Character
@@ -4337,7 +4334,7 @@ local function SetupMovementModifications()
         local Humanoid = Character:FindFirstChildOfClass("Humanoid")
         if not Humanoid then return end
         
-        local MovementSettings = shared.Reapsprivate and shared.Reapsprivate['Movement Modifications']
+        local MovementSettings = shared.Sound and shared.Sound['Movement Modifications']
         if not MovementSettings then return end
         
         if not isSpeedEnabled or not MovementSettings['Enabled'] then
@@ -4358,7 +4355,7 @@ local function SetupMovementModifications()
     uis.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         
-        local MovementSettings = shared.Reapsprivate and shared.Reapsprivate['Movement Modifications']
+        local MovementSettings = shared.Sound and shared.Sound['Movement Modifications']
         if not MovementSettings then return end
         
         if not MovementSettings['Enabled'] then return end
@@ -4621,7 +4618,7 @@ end
 
 if GunHandler and OriginalGetAim then
     GunHandler.getAim = function(origin, range)
-        local Config = shared.Reapsprivate
+        local Config = shared.Sound
         local SilentCfg = Config and Config["Silent Aimbot"]
         if not SilentCfg or not SilentCfg["Enabled"] then
             if OriginalGetAim then return OriginalGetAim(origin, range) end
@@ -4731,7 +4728,7 @@ end
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    local Settings = shared.Reapsprivate
+    local Settings = shared.Sound
     if not Settings then return end
     
     local VisualsCfg = Settings['Visuals']
@@ -4810,7 +4807,7 @@ local function GetClosestPlayerToCursor(MaxRange, mode)
 end
 
 local UtilityUI = Instance.new("ScreenGui")
-UtilityUI.Name = "ReapsprivateUI"
+UtilityUI.Name = "SoundUI"
 UtilityUI.IgnoreGuiInset = true
 UtilityUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 UtilityUI.Parent = CoreGui
@@ -4979,7 +4976,7 @@ end
 local function IsInFOV(Player, mode)
     if not Player or not Player.Character then return false end
     
-    local Settings = shared.Reapsprivate
+    local Settings = shared.Sound
     local Cfg = Settings and Settings[mode]
     if not Cfg then return true end
     
@@ -5014,7 +5011,7 @@ local function IsInFOV(Player, mode)
 end
 
 local function IsSeparateKeybindsEnabled()
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     if not Config then return false end
     local keybind = Config['Keybind']
     if not keybind then return false end
@@ -5027,7 +5024,7 @@ local function HandleSharedKey(input, processed)
     
     if IsSeparateKeybindsEnabled() then return end
     
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     if not Config then return end
     
     local key = GetKeybind()
@@ -5051,19 +5048,19 @@ local function HandleSharedKey(input, processed)
     
     local SilentEnabled = Config["Silent Aimbot"] and Config["Silent Aimbot"]["Enabled"]
     local TriggerEnabled = Config["Trigger Bot"] and Config["Trigger Bot"]["Enabled"]
-    local CameraEnabled = Config["Camera Aimbot"] and Config["Camera Aimbot"]["Enabled"]
+    local CameraEnabled = Config["Aim Assist"] and Config["Aim Assist"]["Enabled"]
     
     local activeModes = {}
     if SilentEnabled then table.insert(activeModes, "Silent Aimbot") end
     if TriggerEnabled then table.insert(activeModes, "Trigger Bot") end
-    if CameraEnabled then table.insert(activeModes, "Camera Aimbot") end
+    if CameraEnabled then table.insert(activeModes, "Aim Assist") end
     
     if #activeModes == 0 then return end
     
     if #activeModes == 1 then
         local mode = activeModes[1]
         if mode == "Silent Aimbot" then
-            local SelMode = Config["Silent Aimbot"]["Selection"] or "Toggle"
+            local SelMode = Config["Selecting A Player"]["Silent Aimbot"] or "Toggle"
             local MaxR = GetSelectingDistance("Silent Aimbot")
             if SelMode == "Toggle" then
                 State.SilentTargetLocked = not State.SilentTargetLocked
@@ -5080,7 +5077,7 @@ local function HandleSharedKey(input, processed)
                 state.lastValidTarget = nil
             end
         elseif mode == "Trigger Bot" then
-            local SelMode = Config["Trigger Bot"]["Selection"] or "Toggle"
+            local SelMode = Config["Selecting A Player"]["Trigger Bot"] or "Toggle"
             local MaxR = GetSelectingDistance("Trigger Bot")
             if SelMode == "Toggle" then
                 State.TriggerTargetLocked = not State.TriggerTargetLocked
@@ -5101,13 +5098,13 @@ local function HandleSharedKey(input, processed)
                 state.triggerLastValidTarget = nil
                 state.triggerFOVActive = true
             end
-        elseif mode == "Camera Aimbot" then
-            local SelMode = Config["Camera Aimbot"]["Selection"] or "Toggle"
-            local MaxR = GetSelectingDistance("Camera Aimbot")
+        elseif mode == "Aim Assist" then
+            local SelMode = Config["Selecting A Player"]["Aim Assist"] or "Toggle"
+            local MaxR = GetSelectingDistance("Aim Assist")
             if SelMode == "Toggle" then
                 State.CameraTargetLocked = not State.CameraTargetLocked
                 if State.CameraTargetLocked then
-                    State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
+                    State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Aim Assist")
                     state.cameraLastValidTarget = nil
                     state.cameraFOVActive = true
                     state.cameraEasingProgress = 0
@@ -5123,7 +5120,7 @@ local function HandleSharedKey(input, processed)
                 end
             elseif SelMode == "Hold" then
                 State.CameraTargetLocked = true
-                State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
+                State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Aim Assist")
                 state.cameraLastValidTarget = nil
                 state.cameraFOVActive = true
                 state.cameraEasingProgress = 0
@@ -5188,8 +5185,8 @@ local function HandleSharedKey(input, processed)
             end
             
             if CameraEnabled then
-                local MaxR = GetSelectingDistance("Camera Aimbot")
-                local Target = state.sharedTarget or GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
+                local MaxR = GetSelectingDistance("Aim Assist")
+                local Target = state.sharedTarget or GetClosestPlayerToCursor(MaxR, "Aim Assist")
                 if Target then
                     State.CameraTargetLocked = true
                     State.Targets.Camera = Target
@@ -5208,7 +5205,7 @@ local function HandleTriggerKey(input, processed)
     
     if not IsSeparateKeybindsEnabled() then return end
     
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     local TriggerCfg = Config and Config["Trigger Bot"]
     if not TriggerCfg or not TriggerCfg["Enabled"] then return end
     
@@ -5233,7 +5230,7 @@ local function HandleTriggerKey(input, processed)
     
     if not match then return end
     
-    local SelMode = TriggerCfg["Selection"] or "Toggle"
+    local SelMode = Config["Selecting A Player"]["Trigger Bot"] or "Toggle"
     
     if SelMode == "Toggle" then
         State.TriggerTargetLocked = not State.TriggerTargetLocked
@@ -5261,7 +5258,7 @@ local function HandleSilentKey(input, processed)
     
     if not IsSeparateKeybindsEnabled() then return end
     
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     local SilentCfg = Config and Config["Silent Aimbot"]
     if not SilentCfg or not SilentCfg["Enabled"] then return end
     
@@ -5286,7 +5283,7 @@ local function HandleSilentKey(input, processed)
     
     if not Match then return end
     
-    local SelMode = SilentCfg["Selection"] or "Toggle"
+    local SelMode = Config["Selecting A Player"]["Silent Aimbot"] or "Toggle"
     
     if SelMode == "Toggle" then
         State.SilentTargetLocked = not State.SilentTargetLocked
@@ -5309,11 +5306,11 @@ local function HandleCameraKey(input, processed)
     
     if not IsSeparateKeybindsEnabled() then return end
     
-    local Config = shared.Reapsprivate
-    local CameraCfg = Config and Config["Camera Aimbot"]
+    local Config = shared.Sound
+    local CameraCfg = Config and Config["Aim Assist"]
     if not CameraCfg or not CameraCfg["Enabled"] then return end
     
-    local MaxR = GetSelectingDistance("Camera Aimbot")
+    local MaxR = GetSelectingDistance("Aim Assist")
     local Key = GetCameraKeybind()
     
     if not Key then return end
@@ -5334,12 +5331,12 @@ local function HandleCameraKey(input, processed)
     
     if not Match then return end
     
-    local SelMode = CameraCfg["Selection"] or "Toggle"
+    local SelMode = Config["Selecting A Player"]["Aim Assist"] or "Toggle"
     
     if SelMode == "Toggle" then
         State.CameraTargetLocked = not State.CameraTargetLocked
         if State.CameraTargetLocked then
-            State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
+            State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Aim Assist")
             state.cameraLastValidTarget = nil
             state.cameraFOVActive = true
             state.cameraEasingProgress = 0
@@ -5355,7 +5352,7 @@ local function HandleCameraKey(input, processed)
         end
     elseif SelMode == "Hold" then
         State.CameraTargetLocked = true
-        State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
+        State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Aim Assist")
         state.cameraLastValidTarget = nil
         state.cameraFOVActive = true
         state.cameraEasingProgress = 0
@@ -5390,16 +5387,16 @@ UserInputService.InputEnded:Connect(function(input)
                 end)
             end
             if Match then
-                local Config = shared.Reapsprivate
+                local Config = shared.Sound
                 if Config then
                     local SilentCfg = Config["Silent Aimbot"]
-                    if SilentCfg and SilentCfg["Selection"] == "Hold" then
+                    if SilentCfg and SilentCfg["Enabled"] and Config["Selecting A Player"]["Silent Aimbot"] == "Hold" then
                         State.SilentTargetLocked = false
                         State.Targets.Silent = nil
                         state.lastValidTarget = nil
                     end
                     local TriggerCfg = Config["Trigger Bot"]
-                    if TriggerCfg and TriggerCfg["Selection"] == "Hold" then
+                    if TriggerCfg and TriggerCfg["Enabled"] and Config["Selecting A Player"]["Trigger Bot"] == "Hold" then
                         State.TriggerTargetLocked = false
                         State.Targets.Trigger = nil
                         state.triggerLastValidTarget = nil
@@ -5407,8 +5404,8 @@ UserInputService.InputEnded:Connect(function(input)
                         TriggerFOVBox.Visible = false
                         Trigger3DFOVPart.Transparency = 1
                     end
-                    local CameraCfg = Config["Camera Aimbot"]
-                    if CameraCfg and CameraCfg["Selection"] == "Hold" then
+                    local CameraCfg = Config["Aim Assist"]
+                    if CameraCfg and CameraCfg["Enabled"] and Config["Selecting A Player"]["Aim Assist"] == "Hold" then
                         State.CameraTargetLocked = false
                         State.Targets.Camera = nil
                         state.cameraLastValidTarget = nil
@@ -5427,10 +5424,10 @@ UserInputService.InputEnded:Connect(function(input)
             end
         end
     else
-        local Config = shared.Reapsprivate
+        local Config = shared.Sound
         if Config then
             local SilentCfg = Config["Silent Aimbot"]
-            if SilentCfg and SilentCfg["Enabled"] and SilentCfg["Selection"] == "Hold" then
+            if SilentCfg and SilentCfg["Enabled"] and Config["Selecting A Player"]["Silent Aimbot"] == "Hold" then
                 local Key = GetSilentKeybind()
                 if Key then
                     local Match = false
@@ -5454,7 +5451,7 @@ UserInputService.InputEnded:Connect(function(input)
                 end
             end
             local TriggerCfg = Config["Trigger Bot"]
-            if TriggerCfg and TriggerCfg["Enabled"] and TriggerCfg["Selection"] == "Hold" then
+            if TriggerCfg and TriggerCfg["Enabled"] and Config["Selecting A Player"]["Trigger Bot"] == "Hold" then
                 local Key = GetTriggerKeybind()
                 if Key then
                     local Match = false
@@ -5480,8 +5477,8 @@ UserInputService.InputEnded:Connect(function(input)
                     end
                 end
             end
-            local CameraCfg = Config["Camera Aimbot"]
-            if CameraCfg and CameraCfg["Enabled"] and CameraCfg["Selection"] == "Hold" then
+            local CameraCfg = Config["Aim Assist"]
+            if CameraCfg and CameraCfg["Enabled"] and Config["Selecting A Player"]["Aim Assist"] == "Hold" then
                 local Key = GetCameraKeybind()
                 if Key then
                     local Match = false
@@ -5514,8 +5511,8 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 local function UpdateCameraFOV()
-    local Config = shared.Reapsprivate
-    local CameraCfg = Config and Config["Camera Aimbot"]
+    local Config = shared.Sound
+    local CameraCfg = Config and Config["Aim Assist"]
     if not CameraCfg or not CameraCfg["Enabled"] then
         if LastFrame.CameraFOVVisible then
             CameraFOVBox.Visible = false
@@ -5525,7 +5522,7 @@ local function UpdateCameraFOV()
         return
     end
 
-    ValidateTarget("Camera Aimbot")
+    ValidateTarget("Aim Assist")
     local CameraTarget = State.Targets.Camera
     local fovMethod = CameraCfg["FOV Method"] or "2D"
     local visualize = CameraCfg["Visualize"]
@@ -5549,7 +5546,7 @@ local function UpdateCameraFOV()
             if Root then
                 local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                 if OnScreen and ScreenPos.Z > 1 then
-                    local scaledFov = getScaledFOV("Camera Aimbot", "2D", ScreenPos, Root)
+                    local scaledFov = getScaledFOV("Aim Assist", "2D", ScreenPos, Root)
                     if scaledFov then
                         local W = scaledFov.left + scaledFov.right
                         local H = scaledFov.upper + scaledFov.lower
@@ -5581,7 +5578,7 @@ local function UpdateCameraFOV()
             local Char = CameraTarget.Character
             local Root = Char and Char:FindFirstChild("HumanoidRootPart")
             if Root then
-                local fovConfig = getFOVConfig("Camera Aimbot", "3D")
+                local fovConfig = getFOVConfig("Aim Assist", "3D")
                 if fovConfig then
                     local totalSize = Root.Size + Vector3.new(fovConfig.x * 2, fovConfig.y * 2, fovConfig.z * 2)
                     Camera3DFOVPart.Size = totalSize
@@ -5598,7 +5595,7 @@ local function UpdateCameraFOV()
 end
 
 local function UpdateTriggerFOV()
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     local TriggerCfg = Config and Config["Trigger Bot"]
     if not TriggerCfg or not TriggerCfg["Enabled"] then
         if LastFrame.TriggerFOVVisible then
@@ -5689,7 +5686,7 @@ local function UpdateTriggerFOV()
 end
 
 local function UpdateSilentFOV()
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     local SilentCfg = Config and Config["Silent Aimbot"]
     local SilentEnabled = SilentCfg and SilentCfg["Enabled"]
     if not SilentEnabled then
@@ -5783,7 +5780,7 @@ local function UpdateESP()
         return
     end
     
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     local VisualsCfg = Config and Config["Visuals"] or {}
     local NamesCfg = VisualsCfg["Names"] or {}
     local ESPEnabled = VisualsCfg["Enabled"] and NamesCfg["Enabled"]
@@ -5830,7 +5827,7 @@ local function UpdateESP()
                 isLocked = true
             elseif Plr == State.Targets.Trigger and CheckChecks(Plr, "Trigger Bot") then
                 isLocked = true
-            elseif Plr == State.Targets.Camera and CheckChecks(Plr, "Camera Aimbot") then
+            elseif Plr == State.Targets.Camera and CheckChecks(Plr, "Aim Assist") then
                 isLocked = true
             end
             
@@ -5864,7 +5861,7 @@ local function UpdatePanel()
         return
     end
     
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     local VisualsCfg = Config and Config["Visuals"] or {}
     local PanelCfg = VisualsCfg["Panel"] or {}
     local PanelEnabled = VisualsCfg["Enabled"] and PanelCfg["Enabled"]
@@ -5898,7 +5895,7 @@ local function UpdatePanel()
         
         local silentName = getTargetName(silentTarget, "Silent Aimbot")
         local triggerName = getTargetName(triggerTarget, "Trigger Bot")
-        local cameraName = getTargetName(cameraTarget, "Camera Aimbot")
+        local cameraName = getTargetName(cameraTarget, "Aim Assist")
         
         local primaryTarget = nil
         local primaryMode = nil
@@ -5910,7 +5907,7 @@ local function UpdatePanel()
             primaryMode = "Trigger Bot"
         elseif cameraTarget and State.CameraTargetLocked then
             primaryTarget = cameraTarget
-            primaryMode = "Camera Aimbot"
+            primaryMode = "Aim Assist"
         end
         
         local targetDisplayName = "N/A"
@@ -6037,7 +6034,7 @@ local function UpdatePanel()
                 end
             end
             
-            PanelTitle.Text = string.format('<font color="rgb(%d,%d,%d)">Reapsprivate</font><font color="rgb(%d,%d,%d)">.</font><font color="rgb(%d,%d,%d)">%s</font>',
+            PanelTitle.Text = string.format('<font color="rgb(%d,%d,%d)">Sound</font><font color="rgb(%d,%d,%d)">.</font><font color="rgb(%d,%d,%d)">%s</font>',
                 math.floor(PC.R*255), math.floor(PC.G*255), math.floor(PC.B*255),
                 math.floor(DotColor.R*255), math.floor(DotColor.G*255), math.floor(DotColor.B*255),
                 math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255), AliasStr)
@@ -6141,7 +6138,7 @@ local function UpdatePanel()
             PanelVis = true
             
         else
-            PanelTitle.Text = string.format('<font color="rgb(%d,%d,%d)">Reapsprivate</font><font color="rgb(%d,%d,%d)">.</font><font color="rgb(%d,%d,%d)">%s</font>',
+            PanelTitle.Text = string.format('<font color="rgb(%d,%d,%d)">Sound</font><font color="rgb(%d,%d,%d)">.</font><font color="rgb(%d,%d,%d)">%s</font>',
                 math.floor(PC.R*255), math.floor(PC.G*255), math.floor(PC.B*255),
                 math.floor(DotColor.R*255), math.floor(DotColor.G*255), math.floor(DotColor.B*255),
                 math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255), AliasStr)
@@ -6282,7 +6279,7 @@ local function UpdatePanel()
 end
 
 local function UpdateTriggerBot()
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     local TriggerCfg = Config and Config["Trigger Bot"]
     if not TriggerCfg or not TriggerCfg["Enabled"] then return end
     
@@ -6453,9 +6450,9 @@ local function GetCameraTargetPart(Player)
     local Character = Player.Character
     if not Character then return nil end
     
-    local Config = shared.Reapsprivate
+    local Config = shared.Sound
     if not Config then return nil end
-    local CameraCfg = Config["Camera Aimbot"]
+    local CameraCfg = Config["Aim Assist"]
     if not CameraCfg then return nil end
     
     local TargetZone = CameraCfg["Target Zone"] or "Nearest Part"
@@ -6489,20 +6486,20 @@ local function GetCameraTargetPart(Player)
 end
 
 local function UpdateCameraAimbot()
-    local Config = shared.Reapsprivate
-    local CameraCfg = Config and Config["Camera Aimbot"]
+    local Config = shared.Sound
+    local CameraCfg = Config and Config["Aim Assist"]
     if not CameraCfg or not CameraCfg["Enabled"] then return end
     
     if not State.CameraTargetLocked then
         return
     end
     
-    ValidateTarget("Camera Aimbot")
+    ValidateTarget("Aim Assist")
     
     local Target = State.Targets.Camera
     if not Target then return end
     
-    if not CheckChecks(Target, "Camera Aimbot") then
+    if not CheckChecks(Target, "Aim Assist") then
         State.CameraTargetLocked = false
         State.Targets.Camera = nil
         state.cameraFOVActive = false
@@ -6514,7 +6511,7 @@ local function UpdateCameraAimbot()
         return
     end
     
-    local inFOV = IsInFOV(Target, "Camera Aimbot")
+    local inFOV = IsInFOV(Target, "Aim Assist")
     if not inFOV then return end
     
     local Character = LocalPlayer.Character
@@ -6633,7 +6630,7 @@ end
 
 local preRenderConnection = nil
 preRenderConnection = RunService.RenderStepped:Connect(function()
-    if not shared.Reapsprivate then
+    if not shared.Sound then
         if preRenderConnection then
             preRenderConnection:Disconnect()
             preRenderConnection = nil
