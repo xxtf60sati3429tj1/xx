@@ -4119,45 +4119,137 @@ end
 local function GetKeybind()
     local Settings = shared.Sound
     if not Settings then return nil end
-    local keybind = Settings['Keybind']
-    if not keybind then return nil end
-    return keybind['Global']
+    local keybinds = Settings['Global Keybinds']
+    if not keybinds then return nil end
+    local aimbotOps = keybinds['Aimbot Operations']
+    if not aimbotOps then return nil end
+    return aimbotOps['Aim Assist'] or 'C'
 end
 
 local function GetSilentKeybind()
     local Settings = shared.Sound
     if not Settings then return nil end
-    local keybind = Settings['Keybind']
-    if not keybind then return nil end
-    local separate = keybind['Separate']
-    if separate and separate['Enabled'] then
-        return separate['Silent Aimbot']
-    end
-    return keybind['Global']
+    local keybinds = Settings['Global Keybinds']
+    if not keybinds then return nil end
+    local aimbotOps = keybinds['Aimbot Operations']
+    if not aimbotOps then return nil end
+    return aimbotOps['Silent Aimbot'] or 'C'
 end
 
 local function GetTriggerKeybind()
     local Settings = shared.Sound
     if not Settings then return nil end
-    local keybind = Settings['Keybind']
-    if not keybind then return nil end
-    local separate = keybind['Separate']
-    if separate and separate['Enabled'] then
-        return separate['Trigger Bot']
-    end
-    return keybind['Global']
+    local keybinds = Settings['Global Keybinds']
+    if not keybinds then return nil end
+    local aimbotOps = keybinds['Aimbot Operations']
+    if not aimbotOps then return nil end
+    return aimbotOps['Trigger Bot'] or 'C'
 end
 
 local function GetCameraKeybind()
     local Settings = shared.Sound
     if not Settings then return nil end
-    local keybind = Settings['Keybind']
-    if not keybind then return nil end
-    local separate = keybind['Separate']
-    if separate and separate['Enabled'] then
-        return separate['Camera Aimbot']
-    end
-    return keybind['Global']
+    local keybinds = Settings['Global Keybinds']
+    if not keybinds then return nil end
+    local aimbotOps = keybinds['Aimbot Operations']
+    if not aimbotOps then return nil end
+    return aimbotOps['Aim Assist'] or 'C'
+end
+
+local function GetOtherKeybind(keyName)
+    local Settings = shared.Sound
+    if not Settings then return nil end
+    local keybinds = Settings['Global Keybinds']
+    if not keybinds then return nil end
+    local otherOps = keybinds['Other Operations']
+    if not otherOps then return nil end
+    return otherOps[keyName]
+end
+
+local function GetSafetyKeybind(keyName)
+    local Settings = shared.Sound
+    if not Settings then return nil end
+    local keybinds = Settings['Global Keybinds']
+    if not keybinds then return nil end
+    local safetyOps = keybinds['Safety Operations']
+    if not safetyOps then return nil end
+    return safetyOps[keyName]
+end
+
+local function GetSelectingMode(mode)
+    local Settings = shared.Sound
+    if not Settings then return 'Toggle' end
+    local selecting = Settings['Selecting A Player']
+    if not selecting then return 'Toggle' end
+    return selecting[mode] or 'Toggle'
+end
+
+local function GetPlayerSelection(mode)
+    local Settings = shared.Sound
+    if not Settings then return 'Target' end
+    local selection = Settings['Player Selection']
+    if not selection then return 'Target' end
+    return selection[mode] or 'Target'
+end
+
+local function GetVisualsKeybind()
+    local Settings = shared.Sound
+    if not Settings then return nil end
+    local keybinds = Settings['Global Keybinds']
+    if not keybinds then return nil end
+    local otherOps = keybinds['Other Operations']
+    if not otherOps then return nil end
+    return otherOps['Visuals'] or 'J'
+end
+
+local function GetPurchaseKeybind()
+    local Settings = shared.Sound
+    if not Settings then return nil end
+    local keybinds = Settings['Global Keybinds']
+    if not keybinds then return nil end
+    local otherOps = keybinds['Other Operations']
+    if not otherOps then return nil end
+    return otherOps['Purchase'] or 'B'
+end
+
+local function GetSorterKeybind()
+    local Settings = shared.Sound
+    if not Settings then return nil end
+    local keybinds = Settings['Global Keybinds']
+    if not keybinds then return nil end
+    local otherOps = keybinds['Other Operations']
+    if not otherOps then return nil end
+    return otherOps['Inventory Sorter'] or 'K'
+end
+
+local function GetUninjectKeybind()
+    local Settings = shared.Sound
+    if not Settings then return nil end
+    local keybinds = Settings['Global Keybinds']
+    if not keybinds then return nil end
+    local safetyOps = keybinds['Safety Operations']
+    if not safetyOps then return nil end
+    return safetyOps['Uninject'] or 'F2'
+end
+
+local function GetPanicGroundKeybind()
+    local Settings = shared.Sound
+    if not Settings then return nil end
+    local keybinds = Settings['Global Keybinds']
+    if not keybinds then return nil end
+    local safetyOps = keybinds['Safety Operations']
+    if not safetyOps then return nil end
+    return safetyOps['Panic Ground']
+end
+
+local function GetAutoResetKeybind()
+    local Settings = shared.Sound
+    if not Settings then return nil end
+    local keybinds = Settings['Global Keybinds']
+    if not keybinds then return nil end
+    local safetyOps = keybinds['Safety Operations']
+    if not safetyOps then return nil end
+    return safetyOps['Auto Reset']
 end
 
 local function GetSelectingDistance(mode)
@@ -4169,6 +4261,35 @@ local function GetSelectingDistance(mode)
     if dist == nil then return 0 end
     if dist <= 0 then return 0 end
     return dist
+end
+
+-- fix the movement modifications to use Player Conditions instead of Core
+local function getCurrentMultiplier()
+    local MovementSettings = shared.Sound and shared.Sound['Movement Modifications']
+    if not MovementSettings then return 1 end
+    
+    local MovementCfg = MovementSettings['Player Conditions']
+    if not MovementCfg then return 1 end
+    
+    local Character = LocalPlayer.Character
+    if not Character then return 1 end
+    
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    if not Humanoid then return 1 end
+    
+    local CurrentState = "Normal"
+    
+    if Humanoid.Health / Humanoid.MaxHealth < 0.3 then
+        CurrentState = "Low Health"
+    end
+    
+    local Multiplier = 1
+    local StateConfig = MovementCfg[CurrentState]
+    if StateConfig and StateConfig['Multiplier'] then
+        Multiplier = type(StateConfig['Multiplier']) == 'table' and StateConfig['Multiplier'][1] or StateConfig['Multiplier']
+    end
+    
+    return Multiplier
 end
 
 local function GetTriggerCooldownForWeapon(weaponName)
