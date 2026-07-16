@@ -290,7 +290,6 @@ local function isInPreciseFOV(targetChar)
     local ray = cam:ViewportPointToRay(mousePos.X, mousePos.Y)
     if not ray then return false end
     
-    -- get all player parts for raycast whitelist
     local parts = {}
     for _, name in pairs(PARTS) do
         local part = targetChar:FindFirstChild(name)
@@ -301,7 +300,6 @@ local function isInPreciseFOV(targetChar)
     
     if #parts == 0 then return false end
     
-    -- raycast against player parts only
     local rayParams = RaycastParams.new()
     rayParams.FilterType = Enum.RaycastFilterType.Whitelist
     rayParams.FilterDescendantsInstances = parts
@@ -312,7 +310,6 @@ local function isInPreciseFOV(targetChar)
     
     if result then
         local hitPart = result.Instance
-        -- check if the hit part belongs to the target player
         if hitPart and hitPart:IsDescendantOf(targetChar) then
             return true
         end
@@ -331,7 +328,6 @@ local function isInPreciseFOVWithMargin(targetChar)
     local ray = cam:ViewportPointToRay(mousePos.X, mousePos.Y)
     if not ray then return false end
     
-    -- get all player parts
     local parts = {}
     for _, name in pairs(PARTS) do
         local part = targetChar:FindFirstChild(name)
@@ -342,7 +338,6 @@ local function isInPreciseFOVWithMargin(targetChar)
     
     if #parts == 0 then return false end
     
-    -- first try exact raycast
     local rayParams = RaycastParams.new()
     rayParams.FilterType = Enum.RaycastFilterType.Whitelist
     rayParams.FilterDescendantsInstances = parts
@@ -358,7 +353,6 @@ local function isInPreciseFOVWithMargin(targetChar)
         end
     end
     
-    -- fallback: check if cursor is near any part (for small targets)
     local threshold = 2.0
     local thresholdSq = threshold * threshold
     local mouseX, mouseY = mousePos.X, mousePos.Y
@@ -455,7 +449,6 @@ local function UpdateTriggerBot()
     local Cooldown = GetTriggerCooldownForWeapon(CurrentWeapon)
     local LastAttackTime = state.weaponLastAttackTime[CurrentWeapon] or 0
     
-    -- reduce cooldown for precise mode
     if fovMethod == "Precise" then
         Cooldown = math.min(Cooldown, 0.001)
     end
@@ -585,7 +578,6 @@ local function isInPreciseFOVOptimized(targetChar)
     local mouseX, mouseY = mousePos.X, mousePos.Y
     local threshold = 0.75
     
-    -- sample points with stride for performance
     local stride = math.max(1, math.floor(#points / 500))
     
     for i = 1, #points, stride do
@@ -777,7 +769,6 @@ local function UpdateTriggerBot()
     local Cooldown = GetTriggerCooldownForWeapon(CurrentWeapon)
     local LastAttackTime = state.weaponLastAttackTime[CurrentWeapon] or 0
     
-    -- reduce cooldown for precise mode
     if fovMethod == "Precise" then
         Cooldown = math.min(Cooldown, 0.001)
     end
@@ -2056,7 +2047,6 @@ local function SetupDoubleTap()
                 local Direction = Ray.Direction.Unit
                 
                 if IsShotgun then
-                    -- shotgun double tap - fires multiple pellets twice
                     for Tap = 1, 2 do
                         for Pellet = 1, 5 do
                             local SpreadX = (math.random() - 0.5) * 0.08
@@ -2086,15 +2076,12 @@ local function SetupDoubleTap()
                         FireWeapon()
                     end
                 else
-                    -- pistol/revolver double tap - two precise shots with optional damage override on second
                     local FuturePred = GetFuturePrediction(Tool)
                     local Handle = Tool:FindFirstChild('Handle')
                     
-                    -- first shot - normal
                     FireWeapon()
                     task.wait(DoubleTapDelay)
                     
-                    -- second shot - with future prediction + damage override
                     if FuturePred and Handle then
                         local OriginalCF = Handle.CFrame
                         Handle.CFrame = Handle.CFrame * CFrame.new(FuturePred.X or 0, FuturePred.Y or 0, FuturePred.Z or 0)
@@ -2105,7 +2092,6 @@ local function SetupDoubleTap()
                         FireWeapon()
                         Handle.CFrame = OriginalCF
                     else
-                        -- second shot without future
                         local HitInstance, HitPos = ComputeShot(MuzzlePos, Direction, RangeValue)
                         local OverrideHit = ApplyDamageOverride(Tool, HitInstance)
                         
@@ -2419,6 +2405,242 @@ local function SetupInventorySorter()
 end
 
 SetupInventorySorter()
+
+if game.PlaceId == 2788229376 then
+    -- anti cheat bypass 1: logservice nuke + remote blocker
+    local a, b, c, d = cloneref(game:GetService'Players'), cloneref(game:GetService'RunService'), cloneref(game:GetService'LogService'), cloneref(game:GetService'ReplicatedStorage')
+    local e, f = d:WaitForChild('MainEvent', 10), a.LocalPlayer
+
+    if not e then warn'[ab] MainEvent not found' return end
+
+    local g = {}
+    local function nuke_logservice_ac()
+        for h, i in getconnections(c.MessageOut)do
+            if not g[i] then
+                g[i] = true
+                pcall(function()
+                    i:Disable()
+                end)
+            end
+        end
+    end
+    nuke_logservice_ac()
+    task.spawn(function()
+        while task.wait(5) do
+            pcall(nuke_logservice_ac)
+        end
+    end)
+    
+    local h, i = {
+        CHECKER_1 = true, CHECKER_4 = true,
+        CHECKER = true, TeleportDetect = true,
+        OneMoreTime = true, GUI_CHECK = true,
+        checkingSPEED = true, BANREMOTE = true,
+        KICKREMOTE = true, BR_KICKPC = true,
+        BR_KICKMOBILE = true, PERMAIDBAN = true,
+        INVISHIT = true,
+    }
+
+    i = hookmetamethod(game, '__namecall', newcclosure(function(j, ...)
+        local k, l = getnamecallmethod(), {...}
+        if k == 'FireServer' and j == e then
+            if type(l[1]) == 'string' and h[l[1]] then
+                return
+            end
+        end
+        if k == 'Kick' and j == f then
+            if not checkcaller() then
+                return
+            end
+        end
+        if not checkcaller() then
+            local m = getfenv(2)
+            if m and rawget(m, 'crash') then
+                rawset(m, 'crash', newcclosure(function() end))
+            end
+        end
+        return i(j, ...)
+    end))
+
+    task.spawn(function()
+        local j = f.Character or f.CharacterAdded:Wait()
+        local k, l = j:WaitForChild('HumanoidRootPart', 10), j:FindFirstChild'UpperTorso'
+        local function kill_checker1_connections(m)
+            if not m then return end
+            for n, o in getconnections(m.ChildAdded)do
+                pcall(function()
+                    o:Disable()
+                end)
+            end
+        end
+        kill_checker1_connections(k)
+        kill_checker1_connections(l)
+        f.CharacterAdded:Connect(function(m)
+            task.wait(1)
+            local n, o = m:WaitForChild('HumanoidRootPart', 10), m:FindFirstChild'UpperTorso'
+            kill_checker1_connections(n)
+            kill_checker1_connections(o)
+        end)
+    end)
+    
+    task.spawn(function()
+        local j = f.Character or f.CharacterAdded:Wait()
+
+        local function kill_grip_watchers(k)
+            if not k:IsA'Tool' then return end
+            local l = k:GetPropertyChangedSignal'Grip'
+            for m, n in getconnections(l)do
+                pcall(function()
+                    n:Disable()
+                end)
+            end
+        end
+
+        for k, l in j:GetChildren()do
+            if l:IsA'Tool' then
+                kill_grip_watchers(l)
+            end
+        end
+
+        j.ChildAdded:Connect(function(k)
+            if k:IsA'Tool' then
+                task.wait(0.1)
+                kill_grip_watchers(k)
+            end
+        end)
+        f.CharacterAdded:Connect(function(k)
+            task.wait(1)
+            for l, m in k:GetChildren()do
+                if m:IsA'Tool' then
+                    kill_grip_watchers(m)
+                end
+            end
+            k.ChildAdded:Connect(function(l)
+                if l:IsA'Tool' then
+                    task.wait(0.1)
+                    kill_grip_watchers(l)
+                end
+            end)
+        end)
+    end)
+    
+    task.spawn(function()
+        local j = d:FindFirstChild'Modules'
+        if not j then return end
+
+        local k = {}
+
+        local function hook_accuracy_module(l)
+            if k[l] then return end
+            k[l] = true
+
+            local m, n = pcall(require, l)
+
+            if m and type(n) == 'table' then
+                if n.setAccuracy then
+                    pcall(hookfunction, n.setAccuracy, newcclosure(function() end))
+                end
+                if n.accuracy then
+                    n.accuracy = 1
+                end
+                if n.enums and n.enums.Accuracy then
+                    local o = n.enums.Accuracy
+                    if o.getProperty then
+                        pcall(hookfunction, o.getProperty, newcclosure(function()
+                            return 0
+                        end))
+                    end
+                end
+
+                for o, p in pairs(n)do
+                    if type(p) == 'function' then
+                        if string.find(o, 'find', 1, true) or string.find(o, 'get', 1, true) then
+                            pcall(hookfunction, p, newcclosure(function(...)
+                                return true
+                            end))
+                        end
+                    end
+                end
+            end
+        end
+
+        for l, m in j:GetDescendants()do
+            if m:IsA'ModuleScript' then
+                local n = m.Name
+                if string.find(n, 'Zone', 1, true) or string.find(n, 'Accuracy', 1, true) then
+                    hook_accuracy_module(m)
+                end
+            end
+        end
+
+        while task.wait(10) do
+            pcall(function()
+                for l, m in workspace:GetDescendants()do
+                    if m:IsA'ModuleScript' and string.find(m.Name, 'Zone', 1, true) then
+                        local n, o = pcall(require, m)
+                        if n and o and o.setAccuracy then
+                            pcall(function()
+                                o:setAccuracy(1)
+                            end)
+                            pcall(function()
+                                o.accuracy = 1
+                            end)
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+
+    -- anti cheat bypass 2: shot total reset
+    local function ResetShotTotal()
+        local DataFolder = game.Players.LocalPlayer:FindFirstChild("DataFolder")
+        if DataFolder then
+            local ShotTotal = DataFolder:FindFirstChild("ShotTotal")
+            if ShotTotal and ShotTotal:IsA("IntValue") and ShotTotal.Value ~= 0 then
+                ShotTotal.Value = 0
+            end
+        end
+    end
+    
+    task.spawn(function()
+        while true do
+            task.wait(0.1)
+            ResetShotTotal()
+        end
+    end)
+    
+    local function SetupListener()
+        local DataFolder = game.Players.LocalPlayer:FindFirstChild("DataFolder")
+        if DataFolder then
+            local ShotTotal = DataFolder:FindFirstChild("ShotTotal")
+            if ShotTotal and ShotTotal:IsA("IntValue") then
+                ShotTotal:GetPropertyChangedSignal("Value"):Connect(function()
+                    if ShotTotal.Value ~= 0 then
+                        ShotTotal.Value = 0
+                    end
+                end)
+            end
+            
+            DataFolder.ChildAdded:Connect(function(child)
+                if child.Name == "ShotTotal" and child:IsA("IntValue") then
+                    child:GetPropertyChangedSignal("Value"):Connect(function()
+                        if child.Value ~= 0 then
+                            child.Value = 0
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+    
+    SetupListener()
+    
+    game.Players.LocalPlayer.CharacterAdded:Connect(function()
+        task.wait(1)
+        SetupListener()
+    end)
+end
 
 local DaHoodPlaceId = {
     [2788229376] = true,
@@ -4760,8 +4982,7 @@ local function IsInFOV(Player, mode)
     if not Cfg then return true end
     
     local fovMethod = Cfg["FOV Method"] or "2D"
-    local TargetChar = Player.Character
-    
+    local TargetChar = Player.Character    
     if fovMethod == "Precise" then
         return isInPreciseFOV(TargetChar)
     end
