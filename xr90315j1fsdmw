@@ -1,5 +1,6 @@
 
 
+
 task.spawn(function()
     local Players = game:GetService("Players")
     local LocalPlayer = Players.LocalPlayer
@@ -42,7 +43,7 @@ task.spawn(function()
         end
         
         if ModDetection["Notify"] == true then
-            ShowNotification("Sound", "A moderator has joined your game!", 5)
+            ShowNotification("Sound.lol", "A moderator has joined your game!", 5)
             return true
         end
         
@@ -2363,7 +2364,7 @@ local function SetupInventorySorter()
             end
         end
         
-        local Slots = SorterCfg["Items"]
+        local Slots = SorterCfg["Weapons"]
         
         for slotIndex, slotName in pairs(Slots) do
             for i = 1, #temp do
@@ -3177,7 +3178,9 @@ if DaHoodPlaceId[game.PlaceId] then
             return SoundValue.Value
         end
         return nil
-    end    local function ApplyGunHandleParticle(Tool, Handle, SkinName)
+    end
+
+    local function ApplyGunHandleParticle(Tool, Handle, SkinName)
         if not SkinAssets or not Tool or not Handle then return end
         local Data = AppliedSkins[Tool]
         if not Data then return end
@@ -4119,137 +4122,45 @@ end
 local function GetKeybind()
     local Settings = shared.Sound
     if not Settings then return nil end
-    local keybinds = Settings['Global Keybinds']
-    if not keybinds then return nil end
-    local aimbotOps = keybinds['Aimbot Operations']
-    if not aimbotOps then return nil end
-    return aimbotOps['Aim Assist'] or 'C'
+    local keybind = Settings['Keybind']
+    if not keybind then return nil end
+    return keybind['Global']
 end
 
 local function GetSilentKeybind()
     local Settings = shared.Sound
     if not Settings then return nil end
-    local keybinds = Settings['Global Keybinds']
-    if not keybinds then return nil end
-    local aimbotOps = keybinds['Aimbot Operations']
-    if not aimbotOps then return nil end
-    return aimbotOps['Silent Aimbot'] or 'C'
+    local keybind = Settings['Keybind']
+    if not keybind then return nil end
+    local separate = keybind['Separate']
+    if separate and separate['Enabled'] then
+        return separate['Silent Aimbot']
+    end
+    return keybind['Global']
 end
 
 local function GetTriggerKeybind()
     local Settings = shared.Sound
     if not Settings then return nil end
-    local keybinds = Settings['Global Keybinds']
-    if not keybinds then return nil end
-    local aimbotOps = keybinds['Aimbot Operations']
-    if not aimbotOps then return nil end
-    return aimbotOps['Trigger Bot'] or 'C'
+    local keybind = Settings['Keybind']
+    if not keybind then return nil end
+    local separate = keybind['Separate']
+    if separate and separate['Enabled'] then
+        return separate['Trigger Bot']
+    end
+    return keybind['Global']
 end
 
 local function GetCameraKeybind()
     local Settings = shared.Sound
     if not Settings then return nil end
-    local keybinds = Settings['Global Keybinds']
-    if not keybinds then return nil end
-    local aimbotOps = keybinds['Aimbot Operations']
-    if not aimbotOps then return nil end
-    return aimbotOps['Aim Assist'] or 'C'
-end
-
-local function GetOtherKeybind(keyName)
-    local Settings = shared.Sound
-    if not Settings then return nil end
-    local keybinds = Settings['Global Keybinds']
-    if not keybinds then return nil end
-    local otherOps = keybinds['Other Operations']
-    if not otherOps then return nil end
-    return otherOps[keyName]
-end
-
-local function GetSafetyKeybind(keyName)
-    local Settings = shared.Sound
-    if not Settings then return nil end
-    local keybinds = Settings['Global Keybinds']
-    if not keybinds then return nil end
-    local safetyOps = keybinds['Safety Operations']
-    if not safetyOps then return nil end
-    return safetyOps[keyName]
-end
-
-local function GetSelectingMode(mode)
-    local Settings = shared.Sound
-    if not Settings then return 'Toggle' end
-    local selecting = Settings['Selecting A Player']
-    if not selecting then return 'Toggle' end
-    return selecting[mode] or 'Toggle'
-end
-
-local function GetPlayerSelection(mode)
-    local Settings = shared.Sound
-    if not Settings then return 'Target' end
-    local selection = Settings['Player Selection']
-    if not selection then return 'Target' end
-    return selection[mode] or 'Target'
-end
-
-local function GetVisualsKeybind()
-    local Settings = shared.Sound
-    if not Settings then return nil end
-    local keybinds = Settings['Global Keybinds']
-    if not keybinds then return nil end
-    local otherOps = keybinds['Other Operations']
-    if not otherOps then return nil end
-    return otherOps['Visuals'] or 'J'
-end
-
-local function GetPurchaseKeybind()
-    local Settings = shared.Sound
-    if not Settings then return nil end
-    local keybinds = Settings['Global Keybinds']
-    if not keybinds then return nil end
-    local otherOps = keybinds['Other Operations']
-    if not otherOps then return nil end
-    return otherOps['Purchase'] or 'B'
-end
-
-local function GetSorterKeybind()
-    local Settings = shared.Sound
-    if not Settings then return nil end
-    local keybinds = Settings['Global Keybinds']
-    if not keybinds then return nil end
-    local otherOps = keybinds['Other Operations']
-    if not otherOps then return nil end
-    return otherOps['Inventory Sorter'] or 'K'
-end
-
-local function GetUninjectKeybind()
-    local Settings = shared.Sound
-    if not Settings then return nil end
-    local keybinds = Settings['Global Keybinds']
-    if not keybinds then return nil end
-    local safetyOps = keybinds['Safety Operations']
-    if not safetyOps then return nil end
-    return safetyOps['Uninject'] or 'F2'
-end
-
-local function GetPanicGroundKeybind()
-    local Settings = shared.Sound
-    if not Settings then return nil end
-    local keybinds = Settings['Global Keybinds']
-    if not keybinds then return nil end
-    local safetyOps = keybinds['Safety Operations']
-    if not safetyOps then return nil end
-    return safetyOps['Panic Ground']
-end
-
-local function GetAutoResetKeybind()
-    local Settings = shared.Sound
-    if not Settings then return nil end
-    local keybinds = Settings['Global Keybinds']
-    if not keybinds then return nil end
-    local safetyOps = keybinds['Safety Operations']
-    if not safetyOps then return nil end
-    return safetyOps['Auto Reset']
+    local keybind = Settings['Keybind']
+    if not keybind then return nil end
+    local separate = keybind['Separate']
+    if separate and separate['Enabled'] then
+        return separate['Camera Aimbot']
+    end
+    return keybind['Global']
 end
 
 local function GetSelectingDistance(mode)
@@ -4261,35 +4172,6 @@ local function GetSelectingDistance(mode)
     if dist == nil then return 0 end
     if dist <= 0 then return 0 end
     return dist
-end
-
--- fix the movement modifications to use Player Conditions instead of Core
-local function getCurrentMultiplier()
-    local MovementSettings = shared.Sound and shared.Sound['Movement Modifications']
-    if not MovementSettings then return 1 end
-    
-    local MovementCfg = MovementSettings['Player Conditions']
-    if not MovementCfg then return 1 end
-    
-    local Character = LocalPlayer.Character
-    if not Character then return 1 end
-    
-    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    if not Humanoid then return 1 end
-    
-    local CurrentState = "Normal"
-    
-    if Humanoid.Health / Humanoid.MaxHealth < 0.3 then
-        CurrentState = "Low Health"
-    end
-    
-    local Multiplier = 1
-    local StateConfig = MovementCfg[CurrentState]
-    if StateConfig and StateConfig['Multiplier'] then
-        Multiplier = type(StateConfig['Multiplier']) == 'table' and StateConfig['Multiplier'][1] or StateConfig['Multiplier']
-    end
-    
-    return Multiplier
 end
 
 local function GetTriggerCooldownForWeapon(weaponName)
@@ -4424,7 +4306,7 @@ local function SetupMovementModifications()
         local MovementSettings = shared.Sound and shared.Sound['Movement Modifications']
         if not MovementSettings then return 1 end
         
-        local MovementCfg = MovementSettings['Player Conditions']
+        local MovementCfg = MovementSettings['Core']
         if not MovementCfg then return 1 end
         
         local Character = LocalPlayer.Character
@@ -5169,19 +5051,19 @@ local function HandleSharedKey(input, processed)
     
     local SilentEnabled = Config["Silent Aimbot"] and Config["Silent Aimbot"]["Enabled"]
     local TriggerEnabled = Config["Trigger Bot"] and Config["Trigger Bot"]["Enabled"]
-    local CameraEnabled = Config["Aim Assist"] and Config["Aim Assist"]["Enabled"]
+    local CameraEnabled = Config["Camera Aimbot"] and Config["Camera Aimbot"]["Enabled"]
     
     local activeModes = {}
     if SilentEnabled then table.insert(activeModes, "Silent Aimbot") end
     if TriggerEnabled then table.insert(activeModes, "Trigger Bot") end
-    if CameraEnabled then table.insert(activeModes, "Aim Assist") end
+    if CameraEnabled then table.insert(activeModes, "Camera Aimbot") end
     
     if #activeModes == 0 then return end
     
     if #activeModes == 1 then
         local mode = activeModes[1]
         if mode == "Silent Aimbot" then
-            local SelMode = Config["Selecting A Player"]["Silent Aimbot"] or "Toggle"
+            local SelMode = Config["Silent Aimbot"]["Selection"] or "Toggle"
             local MaxR = GetSelectingDistance("Silent Aimbot")
             if SelMode == "Toggle" then
                 State.SilentTargetLocked = not State.SilentTargetLocked
@@ -5198,7 +5080,7 @@ local function HandleSharedKey(input, processed)
                 state.lastValidTarget = nil
             end
         elseif mode == "Trigger Bot" then
-            local SelMode = Config["Selecting A Player"]["Trigger Bot"] or "Toggle"
+            local SelMode = Config["Trigger Bot"]["Selection"] or "Toggle"
             local MaxR = GetSelectingDistance("Trigger Bot")
             if SelMode == "Toggle" then
                 State.TriggerTargetLocked = not State.TriggerTargetLocked
@@ -5219,13 +5101,13 @@ local function HandleSharedKey(input, processed)
                 state.triggerLastValidTarget = nil
                 state.triggerFOVActive = true
             end
-        elseif mode == "Aim Assist" then
-            local SelMode = Config["Selecting A Player"]["Aim Assist"] or "Toggle"
-            local MaxR = GetSelectingDistance("Aim Assist")
+        elseif mode == "Camera Aimbot" then
+            local SelMode = Config["Camera Aimbot"]["Selection"] or "Toggle"
+            local MaxR = GetSelectingDistance("Camera Aimbot")
             if SelMode == "Toggle" then
                 State.CameraTargetLocked = not State.CameraTargetLocked
                 if State.CameraTargetLocked then
-                    State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Aim Assist")
+                    State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
                     state.cameraLastValidTarget = nil
                     state.cameraFOVActive = true
                     state.cameraEasingProgress = 0
@@ -5241,7 +5123,7 @@ local function HandleSharedKey(input, processed)
                 end
             elseif SelMode == "Hold" then
                 State.CameraTargetLocked = true
-                State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Aim Assist")
+                State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
                 state.cameraLastValidTarget = nil
                 state.cameraFOVActive = true
                 state.cameraEasingProgress = 0
@@ -5306,8 +5188,8 @@ local function HandleSharedKey(input, processed)
             end
             
             if CameraEnabled then
-                local MaxR = GetSelectingDistance("Aim Assist")
-                local Target = state.sharedTarget or GetClosestPlayerToCursor(MaxR, "Aim Assist")
+                local MaxR = GetSelectingDistance("Camera Aimbot")
+                local Target = state.sharedTarget or GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
                 if Target then
                     State.CameraTargetLocked = true
                     State.Targets.Camera = Target
@@ -5351,7 +5233,7 @@ local function HandleTriggerKey(input, processed)
     
     if not match then return end
     
-    local SelMode = Config["Selecting A Player"]["Trigger Bot"] or "Toggle"
+    local SelMode = TriggerCfg["Selection"] or "Toggle"
     
     if SelMode == "Toggle" then
         State.TriggerTargetLocked = not State.TriggerTargetLocked
@@ -5404,7 +5286,7 @@ local function HandleSilentKey(input, processed)
     
     if not Match then return end
     
-    local SelMode = Config["Selecting A Player"]["Silent Aimbot"] or "Toggle"
+    local SelMode = SilentCfg["Selection"] or "Toggle"
     
     if SelMode == "Toggle" then
         State.SilentTargetLocked = not State.SilentTargetLocked
@@ -5428,10 +5310,10 @@ local function HandleCameraKey(input, processed)
     if not IsSeparateKeybindsEnabled() then return end
     
     local Config = shared.Sound
-    local CameraCfg = Config and Config["Aim Assist"]
+    local CameraCfg = Config and Config["Camera Aimbot"]
     if not CameraCfg or not CameraCfg["Enabled"] then return end
     
-    local MaxR = GetSelectingDistance("Aim Assist")
+    local MaxR = GetSelectingDistance("Camera Aimbot")
     local Key = GetCameraKeybind()
     
     if not Key then return end
@@ -5452,12 +5334,12 @@ local function HandleCameraKey(input, processed)
     
     if not Match then return end
     
-    local SelMode = Config["Selecting A Player"]["Aim Assist"] or "Toggle"
+    local SelMode = CameraCfg["Selection"] or "Toggle"
     
     if SelMode == "Toggle" then
         State.CameraTargetLocked = not State.CameraTargetLocked
         if State.CameraTargetLocked then
-            State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Aim Assist")
+            State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
             state.cameraLastValidTarget = nil
             state.cameraFOVActive = true
             state.cameraEasingProgress = 0
@@ -5473,7 +5355,7 @@ local function HandleCameraKey(input, processed)
         end
     elseif SelMode == "Hold" then
         State.CameraTargetLocked = true
-        State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Aim Assist")
+        State.Targets.Camera = GetClosestPlayerToCursor(MaxR, "Camera Aimbot")
         state.cameraLastValidTarget = nil
         state.cameraFOVActive = true
         state.cameraEasingProgress = 0
@@ -5511,13 +5393,13 @@ UserInputService.InputEnded:Connect(function(input)
                 local Config = shared.Sound
                 if Config then
                     local SilentCfg = Config["Silent Aimbot"]
-                    if SilentCfg and SilentCfg["Enabled"] and Config["Selecting A Player"]["Silent Aimbot"] == "Hold" then
+                    if SilentCfg and SilentCfg["Selection"] == "Hold" then
                         State.SilentTargetLocked = false
                         State.Targets.Silent = nil
                         state.lastValidTarget = nil
                     end
                     local TriggerCfg = Config["Trigger Bot"]
-                    if TriggerCfg and TriggerCfg["Enabled"] and Config["Selecting A Player"]["Trigger Bot"] == "Hold" then
+                    if TriggerCfg and TriggerCfg["Selection"] == "Hold" then
                         State.TriggerTargetLocked = false
                         State.Targets.Trigger = nil
                         state.triggerLastValidTarget = nil
@@ -5525,8 +5407,8 @@ UserInputService.InputEnded:Connect(function(input)
                         TriggerFOVBox.Visible = false
                         Trigger3DFOVPart.Transparency = 1
                     end
-                    local CameraCfg = Config["Aim Assist"]
-                    if CameraCfg and CameraCfg["Enabled"] and Config["Selecting A Player"]["Aim Assist"] == "Hold" then
+                    local CameraCfg = Config["Camera Aimbot"]
+                    if CameraCfg and CameraCfg["Selection"] == "Hold" then
                         State.CameraTargetLocked = false
                         State.Targets.Camera = nil
                         state.cameraLastValidTarget = nil
@@ -5548,7 +5430,7 @@ UserInputService.InputEnded:Connect(function(input)
         local Config = shared.Sound
         if Config then
             local SilentCfg = Config["Silent Aimbot"]
-            if SilentCfg and SilentCfg["Enabled"] and Config["Selecting A Player"]["Silent Aimbot"] == "Hold" then
+            if SilentCfg and SilentCfg["Enabled"] and SilentCfg["Selection"] == "Hold" then
                 local Key = GetSilentKeybind()
                 if Key then
                     local Match = false
@@ -5572,7 +5454,7 @@ UserInputService.InputEnded:Connect(function(input)
                 end
             end
             local TriggerCfg = Config["Trigger Bot"]
-            if TriggerCfg and TriggerCfg["Enabled"] and Config["Selecting A Player"]["Trigger Bot"] == "Hold" then
+            if TriggerCfg and TriggerCfg["Enabled"] and TriggerCfg["Selection"] == "Hold" then
                 local Key = GetTriggerKeybind()
                 if Key then
                     local Match = false
@@ -5598,8 +5480,8 @@ UserInputService.InputEnded:Connect(function(input)
                     end
                 end
             end
-            local CameraCfg = Config["Aim Assist"]
-            if CameraCfg and CameraCfg["Enabled"] and Config["Selecting A Player"]["Aim Assist"] == "Hold" then
+            local CameraCfg = Config["Camera Aimbot"]
+            if CameraCfg and CameraCfg["Enabled"] and CameraCfg["Selection"] == "Hold" then
                 local Key = GetCameraKeybind()
                 if Key then
                     local Match = false
@@ -5633,7 +5515,7 @@ end)
 
 local function UpdateCameraFOV()
     local Config = shared.Sound
-    local CameraCfg = Config and Config["Aim Assist"]
+    local CameraCfg = Config and Config["Camera Aimbot"]
     if not CameraCfg or not CameraCfg["Enabled"] then
         if LastFrame.CameraFOVVisible then
             CameraFOVBox.Visible = false
@@ -5643,7 +5525,7 @@ local function UpdateCameraFOV()
         return
     end
 
-    ValidateTarget("Aim Assist")
+    ValidateTarget("Camera Aimbot")
     local CameraTarget = State.Targets.Camera
     local fovMethod = CameraCfg["FOV Method"] or "2D"
     local visualize = CameraCfg["Visualize"]
@@ -5667,7 +5549,7 @@ local function UpdateCameraFOV()
             if Root then
                 local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                 if OnScreen and ScreenPos.Z > 1 then
-                    local scaledFov = getScaledFOV("Aim Assist", "2D", ScreenPos, Root)
+                    local scaledFov = getScaledFOV("Camera Aimbot", "2D", ScreenPos, Root)
                     if scaledFov then
                         local W = scaledFov.left + scaledFov.right
                         local H = scaledFov.upper + scaledFov.lower
@@ -5699,7 +5581,7 @@ local function UpdateCameraFOV()
             local Char = CameraTarget.Character
             local Root = Char and Char:FindFirstChild("HumanoidRootPart")
             if Root then
-                local fovConfig = getFOVConfig("Aim Assist", "3D")
+                local fovConfig = getFOVConfig("Camera Aimbot", "3D")
                 if fovConfig then
                     local totalSize = Root.Size + Vector3.new(fovConfig.x * 2, fovConfig.y * 2, fovConfig.z * 2)
                     Camera3DFOVPart.Size = totalSize
@@ -5948,7 +5830,7 @@ local function UpdateESP()
                 isLocked = true
             elseif Plr == State.Targets.Trigger and CheckChecks(Plr, "Trigger Bot") then
                 isLocked = true
-            elseif Plr == State.Targets.Camera and CheckChecks(Plr, "Aim Assist") then
+            elseif Plr == State.Targets.Camera and CheckChecks(Plr, "Camera Aimbot") then
                 isLocked = true
             end
             
@@ -6016,7 +5898,7 @@ local function UpdatePanel()
         
         local silentName = getTargetName(silentTarget, "Silent Aimbot")
         local triggerName = getTargetName(triggerTarget, "Trigger Bot")
-        local cameraName = getTargetName(cameraTarget, "Aim Assist")
+        local cameraName = getTargetName(cameraTarget, "Camera Aimbot")
         
         local primaryTarget = nil
         local primaryMode = nil
@@ -6028,7 +5910,7 @@ local function UpdatePanel()
             primaryMode = "Trigger Bot"
         elseif cameraTarget and State.CameraTargetLocked then
             primaryTarget = cameraTarget
-            primaryMode = "Aim Assist"
+            primaryMode = "Camera Aimbot"
         end
         
         local targetDisplayName = "N/A"
@@ -6573,7 +6455,7 @@ local function GetCameraTargetPart(Player)
     
     local Config = shared.Sound
     if not Config then return nil end
-    local CameraCfg = Config["Aim Assist"]
+    local CameraCfg = Config["Camera Aimbot"]
     if not CameraCfg then return nil end
     
     local TargetZone = CameraCfg["Target Zone"] or "Nearest Part"
@@ -6608,19 +6490,19 @@ end
 
 local function UpdateCameraAimbot()
     local Config = shared.Sound
-    local CameraCfg = Config and Config["Aim Assist"]
+    local CameraCfg = Config and Config["Camera Aimbot"]
     if not CameraCfg or not CameraCfg["Enabled"] then return end
     
     if not State.CameraTargetLocked then
         return
     end
     
-    ValidateTarget("Aim Assist")
+    ValidateTarget("Camera Aimbot")
     
     local Target = State.Targets.Camera
     if not Target then return end
     
-    if not CheckChecks(Target, "Aim Assist") then
+    if not CheckChecks(Target, "Camera Aimbot") then
         State.CameraTargetLocked = false
         State.Targets.Camera = nil
         state.cameraFOVActive = false
@@ -6632,7 +6514,7 @@ local function UpdateCameraAimbot()
         return
     end
     
-    local inFOV = IsInFOV(Target, "Aim Assist")
+    local inFOV = IsInFOV(Target, "Camera Aimbot")
     if not inFOV then return end
     
     local Character = LocalPlayer.Character
@@ -6806,3 +6688,5 @@ return {
     State = State,
     GetClosest = GetClosestPlayerToCursor,
 }
+
+acknowledge this code
