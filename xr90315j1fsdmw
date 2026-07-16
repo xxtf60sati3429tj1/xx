@@ -1,5 +1,3 @@
-
-
 task.spawn(function()
     local Players = game:GetService("Players")
     local LocalPlayer = Players.LocalPlayer
@@ -287,22 +285,309 @@ local function isInPreciseFOV(targetChar)
     local mousePos = UserInputService:GetMouseLocation()
     if not mousePos then return false end
     
-    frameCounter = frameCounter + 1
-    if frameCounter % 2 == 0 then
-        return false
+    local cam = Camera
+    local ray = cam:ViewportPointToRay(mousePos.X, mousePos.Y)
+    if not ray then return false end
+    
+    -- get all player parts for raycast whitelist
+    local parts = {}
+    for _, name in pairs(PARTS) do
+        local part = targetChar:FindFirstChild(name)
+        if part and part:IsA("BasePart") then
+            table.insert(parts, part)
+        end
     end
     
-    local points = getCachedHitboxPoints(targetChar)
+    if #parts == 0 then return false end
+    
+    -- raycast against player parts only
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Whitelist
+    rayParams.FilterDescendantsInstances = parts
+    rayParams.IgnoreWater = true
+    
+    local range = 1000
+    local result = Workspace:Raycast(ray.Origin, ray.Direction * range, rayParams)
+    
+    if result then
+        local hitPart = result.Instance
+        -- check if the hit part belongs to the target player
+        if hitPart and hitPart:IsDescendantOf(targetChar) then
+            return true
+        end
+    end
+    
+    return false
+end
+
+local function isInPreciseFOVWithMargin(targetChar)
+    if not targetChar then return false end
+    
+    local mousePos = UserInputService:GetMouseLocation()
+    if not mousePos then return false end
+    
+    local cam = Camera
+    local ray = cam:ViewportPointToRay(mousePos.X, mousePos.Y)
+    if not ray then return false end
+    
+    -- get all player parts
+    local parts = {}
+    for _, name in pairs(PARTS) do
+        local part = targetChar:FindFirstChild(name)
+        if part and part:IsA("BasePart") then
+            table.insert(parts, part)
+        end
+    end
+    
+    if #parts == 0 then return false end
+    
+    -- first try exact raycast
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Whitelist
+    rayParams.FilterDescendantsInstances = parts
+    rayParams.IgnoreWater = true
+    
+    local range = 1000
+    local result = Workspace:Raycast(ray.Origin, ray.Direction * range, rayParams)
+    
+    if result then
+        local hitPart = result.Instance
+        if hitPart and hitPart:IsDescendantOf(targetChar) then
+            return true
+        end
+    end
+    
+    -- fallback: check if cursor is near any part (for small targets)
+    local threshold = 2.0
+    local thresholdSq = threshold * threshold
+    local mouseX, mouseY = mousePos.X, mousePos.Y
+    
+    for _, part in pairs(parts) do
+        local screenPos, onScreen = cam:WorldToViewportPoint(part.Position)
+        if onScreen and screenPos.Z > 0 then
+            local dx = screenPos.X - mouseX
+            local dy = screenPos.Y - mouseY
+            local distSq = dx * dx + dy * dy
+            
+            if distSq < thresholdSq then
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
+local function UpdateTriggerBot()
+    local Config = shared.Scare
+    local TriggerCfg = Config and Config["Trigger Bot"]
+    if not TriggerCfg or not TriggerCfg["Enabled"] then return end
+    
+    if not State.TriggerTargetLocked then return end
+    
+    ValidateTarget("Trigger Bot")
+    
+    local Target = State.Targets.Trigger
+    if not Target then return end
+    
+    if HasForceField(Target) then
+        return
+    end
+    
+    local MaxRange = GetSelectingDistance("Trigger Bot")
+    local BlankPrevention = TriggerCfg["Blank Prevention"]
+    
+    if BlankPrevention == true then
+        MaxRange = 204.2
+    end
+    
+    if MaxRange > 0 and MaxRange ~= math.huge then
+        local Character = LocalPlayer.Character
+        if not Character then return end
+        local RootPart = Character:FindFirstChild("HumanoidRootPart")
+        if not RootPart then return end
+        local TargetRoot = Target.Character and Target.Character:FindFirstChild("HumanoidRootPart")
+        if not TargetRoot then return end
+        local Dist = (RootPart.Position - TargetRoot.Position).Magnitude
+        if Dist > MaxRange then return end
+    end
+    
+    local Weapons = TriggerCfg["Weapons"]
+    if Weapons then
+        local Character = LocalPlayer.Character
+        if Character then
+            local Tool = Character:FindFirstChildOfClass("Tool")
+            if Tool then
+                local ToolName = Tool.Name
+                local WeaponEnabled = Weapons[ToolName]
+                if WeaponEnabled == false then return end
+            end
+        end
+    end
+    
+    local inFOV = false
+    local fovMethod = TriggerCfg["FOV Method"] or "2D"
+    
+    if fovMethod == "Precise" then
+        inFOV = isInPreciseFOV(Target.Character)
+    else
+        inFOV = IsInFOV(Target, "Trigger Bot")
+    end
+    
+    if not inFOV then return end
+    
+    if not CheckChecks(Target, "Trigger Bot") then return end
+    
+    if IsLeftControlHeld() then return end
+    
+    local Character = LocalPlayer.Character
+    if not Character then return end
+    
+    local Tool = Character:FindFirstChildOfClass("Tool")
+    if not Tool then return end
+    
+    if Tool.Name == "[Knife]" or Tool.Name == "Knife" then return end
+    
+    local CurrentTime = tick()
+    local CurrentWeapon = Tool.Name
+    
+    local Cooldown = GetTriggerCooldownForWeapon(CurrentWeapon)
+    local LastAttackTime = state.weaponLastAttackTime[CurrentWeapon] or 0
+    
+    -- reduce cooldown for precise mode
+    if fovMethod == "Precise" then
+        Cooldown = math.min(Cooldown, 0.001)
+    end
+    
+    if CurrentTime - LastAttackTime >= Cooldown then
+        local ShootSuccess = false
+        
+        local function AttemptShoot(Method)
+            local Success = false
+            pcall(function()
+                if Method == "Activate" and Tool.Activate then
+                    Tool:Activate()
+                    Success = true
+                elseif Method == "Fire" and Tool:FindFirstChild("Fire") then
+                    local FireEvent = Tool:FindFirstChild("Fire")
+                    if FireEvent:IsA("RemoteEvent") then
+                        FireEvent:FireServer()
+                        Success = true
+                    elseif FireEvent:IsA("BindableEvent") then
+                        FireEvent:Fire()
+                        Success = true
+                    end
+                elseif Method == "Shoot" and Tool:FindFirstChild("Shoot") then
+                    local ShootEvent = Tool:FindFirstChild("Shoot")
+                    if ShootEvent:IsA("RemoteEvent") then
+                        ShootEvent:FireServer()
+                        Success = true
+                    elseif ShootEvent:IsA("BindableEvent") then
+                        ShootEvent:Fire()
+                        Success = true
+                    end
+                elseif Method == "Click" then
+                    local Mouse = game:GetService("Players").LocalPlayer:GetMouse()
+                    if Mouse then
+                        Mouse.Button1Down:Fire()
+                        task.wait(0.01)
+                        Mouse.Button1Up:Fire()
+                        Success = true
+                    end
+                elseif Method == "RemoteEvent" then
+                    for _, Child in pairs(Tool:GetChildren()) do
+                        if Child:IsA("RemoteEvent") and Child.Name ~= "Fire" and Child.Name ~= "Shoot" then
+                            Child:FireServer()
+                            Success = true
+                            break
+                        end
+                    end
+                elseif Method == "Attack" and Tool:FindFirstChild("Attack") then
+                    local AttackEvent = Tool:FindFirstChild("Attack")
+                    if AttackEvent:IsA("RemoteEvent") then
+                        AttackEvent:FireServer()
+                        Success = true
+                    elseif AttackEvent:IsA("BindableEvent") then
+                        AttackEvent:Fire()
+                        Success = true
+                    end
+                end
+            end)
+            return Success
+        end
+        
+        local ShootMethods = {"Activate", "Fire", "Shoot", "Click", "RemoteEvent", "Attack"}
+        for _, Method in pairs(ShootMethods) do
+            if AttemptShoot(Method) then
+                ShootSuccess = true
+                break
+            end
+        end
+        
+        if not ShootSuccess then
+            pcall(function()
+                local Mouse = game:GetService("Players").LocalPlayer:GetMouse()
+                if Mouse then
+                    local Button1Down = Mouse.Button1Down
+                    local Button1Up = Mouse.Button1Up
+                    if Button1Down and Button1Up then
+                        Button1Down:Fire()
+                        task.wait(0.01)
+                        Button1Up:Fire()
+                        ShootSuccess = true
+                    end
+                end
+            end)
+        end
+        
+        if ShootSuccess then
+            state.weaponLastAttackTime[CurrentWeapon] = CurrentTime
+            state.lastAttackTime = CurrentTime
+        end
+    end
+end
+
+local function GetTriggerCooldownForWeapon(weaponName)
+    local Config = shared.Scare
+    if not Config then return 0.001 end
+    local TriggerCfg = Config["Trigger Bot"]
+    if not TriggerCfg then return 0.001 end
+    local CooldownCfg = TriggerCfg["Click Cooldown"] or {}
+    
+    local fovMethod = TriggerCfg["FOV Method"] or "2D"
+    local baseCooldown = 0.001
+    
+    for Key, Value in pairs(CooldownCfg) do
+        if Key == weaponName then
+            baseCooldown = Value
+            break
+        end
+    end
+    
+    if fovMethod == "Precise" then
+        return math.min(baseCooldown, 0.001)
+    end
+    
+    return baseCooldown
+end
+
+local function isInPreciseFOVOptimized(targetChar)
+    if not targetChar then return false end
+    
+    local mousePos = UserInputService:GetMouseLocation()
+    if not mousePos then return false end
+    
+    local points, density = getCachedHitboxPoints(targetChar)
     if not points or #points == 0 then return false end
     
     local cam = Camera
     local mouseX, mouseY = mousePos.X, mousePos.Y
-    local threshold = 0.5
-    local thresholdSq = threshold * threshold
+    local threshold = 0.75
     
-    local bestDistSq = math.huge
+    -- sample points with stride for performance
+    local stride = math.max(1, math.floor(#points / 500))
     
-    for i = 1, #points do
+    for i = 1, #points, stride do
         local point = points[i]
         local screenPos, onScreen = cam:WorldToViewportPoint(point)
         if onScreen and screenPos.Z > 0 then
@@ -310,20 +595,311 @@ local function isInPreciseFOV(targetChar)
             local dy = screenPos.Y - mouseY
             local distSq = dx * dx + dy * dy
             
-            if distSq < bestDistSq then
-                bestDistSq = distSq
-                if distSq < thresholdSq then
-                    return true
+            if distSq < threshold then
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
+local function getDynamicDensity(distance)
+    if distance < 15 then return 8
+    elseif distance < 30 then return 7
+    elseif distance < 50 then return 6
+    elseif distance < 80 then return 5
+    elseif distance < 120 then return 4
+    elseif distance < 200 then return 3
+    else return 2 end
+end
+
+local function getCachedHitboxPoints(character)
+    if not character then return nil end
+    local key = tostring(character)
+    local currentTime = tick()
+    
+    local cacheEntry = hitboxCache[key]
+    if cacheEntry and currentTime - cacheEntry.timestamp < CACHE_LIFETIME then
+        return cacheEntry.points, cacheEntry.density
+    end
+    
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+    
+    local distance = (Camera.CFrame.Position - hrp.Position).Magnitude
+    local density = getDynamicDensity(distance)
+    
+    local points = {}
+    local partList = {}
+    
+    for _, name in pairs(PARTS) do
+        local part = character:FindFirstChild(name)
+        if part and part:IsA("BasePart") then
+            table.insert(partList, part)
+        end
+    end
+    
+    if #partList == 0 then return nil end
+    
+    local step = 1 / (density - 1)
+    local pointLimit = 3000
+    local totalPoints = #partList * density * density * density
+    
+    if totalPoints > pointLimit then
+        density = math.max(2, math.floor((pointLimit / #partList) ^ (1/3)))
+        step = 1 / (density - 1)
+    end
+    
+    for _, part in pairs(partList) do
+        local size = part.Size
+        local half = size * 0.5
+        local cframe = part.CFrame
+        
+        for z = 0, density - 1 do
+            local zOff = -half.Z + z * step * size.Z
+            for y = 0, density - 1 do
+                local yOff = -half.Y + y * step * size.Y
+                for x = 0, density - 1 do
+                    local xOff = -half.X + x * step * size.X
+                    local worldPos = cframe:PointToWorldSpace(Vector3.new(xOff, yOff, zOff))
+                    table.insert(points, worldPos)
                 end
             end
         end
     end
     
-    if bestDistSq < 1.0 then
-        return true
+    if #points > pointLimit then
+        local sampled = {}
+        local stride = math.max(1, math.floor(#points / pointLimit))
+        for i = 1, #points, stride do
+            table.insert(sampled, points[i])
+        end
+        points = sampled
     end
     
-    return false
+    if #hitboxCache > MAX_CACHE_ENTRIES then
+        local oldest = nil
+        local oldestTime = currentTime
+        for k, v in pairs(hitboxCache) do
+            if v.timestamp < oldestTime then
+                oldestTime = v.timestamp
+                oldest = k
+            end
+        end
+        if oldest then hitboxCache[oldest] = nil end
+    end
+    
+    hitboxCache[key] = {
+        points = points,
+        timestamp = currentTime,
+        density = density,
+        distance = distance
+    }
+    
+    return points, density
+end
+
+local function UpdateTriggerBot()
+    local Config = shared.Scare
+    local TriggerCfg = Config and Config["Trigger Bot"]
+    if not TriggerCfg or not TriggerCfg["Enabled"] then return end
+    
+    if not State.TriggerTargetLocked then return end
+    
+    ValidateTarget("Trigger Bot")
+    
+    local Target = State.Targets.Trigger
+    if not Target then return end
+    
+    if HasForceField(Target) then
+        return
+    end
+    
+    local MaxRange = GetSelectingDistance("Trigger Bot")
+    local BlankPrevention = TriggerCfg["Blank Prevention"]
+    
+    if BlankPrevention == true then
+        MaxRange = 204.2
+    end
+    
+    if MaxRange > 0 and MaxRange ~= math.huge then
+        local Character = LocalPlayer.Character
+        if not Character then return end
+        local RootPart = Character:FindFirstChild("HumanoidRootPart")
+        if not RootPart then return end
+        local TargetRoot = Target.Character and Target.Character:FindFirstChild("HumanoidRootPart")
+        if not TargetRoot then return end
+        local Dist = (RootPart.Position - TargetRoot.Position).Magnitude
+        if Dist > MaxRange then return end
+    end
+    
+    local Weapons = TriggerCfg["Weapons"]
+    if Weapons then
+        local Character = LocalPlayer.Character
+        if Character then
+            local Tool = Character:FindFirstChildOfClass("Tool")
+            if Tool then
+                local ToolName = Tool.Name
+                local WeaponEnabled = Weapons[ToolName]
+                if WeaponEnabled == false then return end
+            end
+        end
+    end
+    
+    local inFOV = false
+    local fovMethod = TriggerCfg["FOV Method"] or "2D"
+    
+    if fovMethod == "Precise" then
+        inFOV = isInPreciseFOV(Target.Character)
+    else
+        inFOV = IsInFOV(Target, "Trigger Bot")
+    end
+    
+    if not inFOV then return end
+    
+    if not CheckChecks(Target, "Trigger Bot") then return end
+    
+    if IsLeftControlHeld() then return end
+    
+    local Character = LocalPlayer.Character
+    if not Character then return end
+    
+    local Tool = Character:FindFirstChildOfClass("Tool")
+    if not Tool then return end
+    
+    if Tool.Name == "[Knife]" or Tool.Name == "Knife" then return end
+    
+    local CurrentTime = tick()
+    local CurrentWeapon = Tool.Name
+    
+    local Cooldown = GetTriggerCooldownForWeapon(CurrentWeapon)
+    local LastAttackTime = state.weaponLastAttackTime[CurrentWeapon] or 0
+    
+    -- reduce cooldown for precise mode
+    if fovMethod == "Precise" then
+        Cooldown = math.min(Cooldown, 0.001)
+    end
+    
+    if CurrentTime - LastAttackTime >= Cooldown then
+        local ShootSuccess = false
+        
+        local function AttemptShoot(Method)
+            local Success = false
+            pcall(function()
+                if Method == "Activate" and Tool.Activate then
+                    Tool:Activate()
+                    Success = true
+                elseif Method == "Fire" and Tool:FindFirstChild("Fire") then
+                    local FireEvent = Tool:FindFirstChild("Fire")
+                    if FireEvent:IsA("RemoteEvent") then
+                        FireEvent:FireServer()
+                        Success = true
+                    elseif FireEvent:IsA("BindableEvent") then
+                        FireEvent:Fire()
+                        Success = true
+                    end
+                elseif Method == "Shoot" and Tool:FindFirstChild("Shoot") then
+                    local ShootEvent = Tool:FindFirstChild("Shoot")
+                    if ShootEvent:IsA("RemoteEvent") then
+                        ShootEvent:FireServer()
+                        Success = true
+                    elseif ShootEvent:IsA("BindableEvent") then
+                        ShootEvent:Fire()
+                        Success = true
+                    end
+                elseif Method == "Click" then
+                    local Mouse = game:GetService("Players").LocalPlayer:GetMouse()
+                    if Mouse then
+                        Mouse.Button1Down:Fire()
+                        task.wait(0.01)
+                        Mouse.Button1Up:Fire()
+                        Success = true
+                    end
+                elseif Method == "RemoteEvent" then
+                    for _, Child in pairs(Tool:GetChildren()) do
+                        if Child:IsA("RemoteEvent") and Child.Name ~= "Fire" and Child.Name ~= "Shoot" then
+                            Child:FireServer()
+                            Success = true
+                            break
+                        end
+                    end
+                elseif Method == "Attack" and Tool:FindFirstChild("Attack") then
+                    local AttackEvent = Tool:FindFirstChild("Attack")
+                    if AttackEvent:IsA("RemoteEvent") then
+                        AttackEvent:FireServer()
+                        Success = true
+                    elseif AttackEvent:IsA("BindableEvent") then
+                        AttackEvent:Fire()
+                        Success = true
+                    end
+                end
+            end)
+            return Success
+        end
+        
+        local ShootMethods = {"Activate", "Fire", "Shoot", "Click", "RemoteEvent", "Attack"}
+        for _, Method in pairs(ShootMethods) do
+            if AttemptShoot(Method) then
+                ShootSuccess = true
+                break
+            end
+        end
+        
+        if not ShootSuccess then
+            pcall(function()
+                local Mouse = game:GetService("Players").LocalPlayer:GetMouse()
+                if Mouse then
+                    local Button1Down = Mouse.Button1Down
+                    local Button1Up = Mouse.Button1Up
+                    if Button1Down and Button1Up then
+                        Button1Down:Fire()
+                        task.wait(0.01)
+                        Button1Up:Fire()
+                        ShootSuccess = true
+                    end
+                end
+            end)
+        end
+        
+        if ShootSuccess then
+            state.weaponLastAttackTime[CurrentWeapon] = CurrentTime
+            state.lastAttackTime = CurrentTime
+        end
+    end
+end
+
+local function GetTriggerCooldownForWeapon(weaponName)
+    local Config = shared.Scare
+    if not Config then return 0.001 end
+    local TriggerCfg = Config["Trigger Bot"]
+    if not TriggerCfg then return 0.001 end
+    local CooldownCfg = TriggerCfg["Click Cooldown"] or {}
+    
+    local fovMethod = TriggerCfg["FOV Method"] or "2D"
+    local baseCooldown = 0.001
+    
+    for Key, Value in pairs(CooldownCfg) do
+        if Key == weaponName then
+            baseCooldown = Value
+            break
+        end
+    end
+    
+    if fovMethod == "Precise" then
+        return math.min(baseCooldown, 0.001)
+    end
+    
+    return baseCooldown
+end
+
+local function clearHitboxCache()
+    local currentTime = tick()
+    for key, data in pairs(hitboxCache) do
+        if currentTime - data.timestamp > CACHE_LIFETIME * 4 then
+            hitboxCache[key] = nil
+        end
+    end
 end
 
 if LRM_INIT_SCRIPT then
@@ -539,6 +1115,8 @@ local state = {
     sorterActive = false,
     panicGroundActive = false,
     panicGroundConnection = nil,
+    damageOverrideCache = {},
+    futurePredictionCache = {},
 }
 
 local player = LocalPlayer
@@ -549,12 +1127,12 @@ local requestFunc = http_request or request or (syn and syn.request) or (http an
 local function IsGameSupported()
     local placeId = game.PlaceId
     local supportedIds = {
-        [2788229376] = true, -- da hood
-        [9825515356] = true, -- hood customs regular
-        [80567999110374] = true, -- hood customs anarchy
-        [138995385694035] = true, -- hood customs ffa
-        [123974602339071] = true, -- baseplate
-        [000000000000000] = true, -- das hood
+        [2788229376] = true,
+        [9825515356] = true,
+        [80567999110374] = true,
+        [138995385694035] = true,
+        [123974602339071] = true,
+        [000000000000000] = true,
     }
     if supportedIds[placeId] then return true end
     
@@ -768,7 +1346,6 @@ local function ApplySkinny(Character)
     end
 end
 
--- animation spoofer
 local function ApplyAnimationSpoofer(Character)
     local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
     if not AvatarCfg then return end
@@ -811,7 +1388,6 @@ local function ApplyAnimationSpoofer(Character)
     SetAnimations(Character, AnimPkg)
 end
 
--- emote spoofer
 local function ApplyEmoteSpoofer(Character)
     local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
     if not AvatarCfg then return end
@@ -860,30 +1436,6 @@ local function ApplyEmoteSpoofer(Character)
     state.emoteSpooferEnabled = true
 end
 
--- avatar spoofer
-local function ApplyAvatarSpoofer(Character)
-    local AvatarCfg = shared.Scare and shared.Scare['Avatar Modifications']
-    if not AvatarCfg then return end
-    local AvatarSpoofer = AvatarCfg['Avatar Spoofer']
-    if not AvatarSpoofer then return end
-    
-    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    if not Humanoid then return end
-    
-    local Username = AvatarSpoofer['Username']
-    if Username and Username ~= "" then
-        local Success, Desc = pcall(function()
-            return Players:GetHumanoidDescriptionFromUserId(Players:GetUserIdFromNameAsync(Username))
-        end)
-        if Success and Desc then
-            pcall(function()
-                Humanoid:ApplyDescription(Desc)
-            end)
-        end
-    end
-end
-
--- delay modification
 local function SetupDelayModifications(Character)
     if not Character then return end
     
@@ -930,7 +1482,6 @@ local function ApplyAvatarModifications(Character)
     ApplyKorblox(Character)
     ApplyAnimationSpoofer(Character)
     ApplyEmoteSpoofer(Character)
-    ApplyAvatarSpoofer(Character)
     SetupDelayModifications(Character)
     
     state.avatarModificationsApplied = true
@@ -953,7 +1504,6 @@ local function CleanupAvatarHandlers()
     state.delayChildConnections = {}
 end
 
--- jump power
 local function ApplyJumpPower(Character)
     if not Character then return end
     
@@ -983,7 +1533,6 @@ local function SetupJumpPower()
     end)
 end
 
--- no jump cooldown
 local function SetupNoJumpCooldown()
     local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
     if not JumpSettings or not JumpSettings['No Jump Cooldown'] then return end
@@ -1015,7 +1564,6 @@ local function SetupNoJumpCooldown()
     LocalPlayer.CharacterAdded:Connect(HandleCooldown)
 end
 
--- walljump
 local function SetupWalljump()
     local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
     if not JumpSettings then return end
@@ -1124,7 +1672,6 @@ local function SetupWalljump()
     end)
 end
 
--- jump features
 local function SetupJumpFeatures()
     SetupJumpPower()
     SetupNoJumpCooldown()
@@ -1138,7 +1685,6 @@ end
 
 SetupJumpFeatures()
 
--- hops system
 local function SetupHops()
     local Config = shared.Scare
     if not Config then return end
@@ -1221,7 +1767,52 @@ end
 
 SetupHops()
 
--- double tap
+local function GetDamageOverrideMode(Tool)
+    local WeaponMods = shared.Scare and shared.Scare['Weapon Modifications']
+    if not WeaponMods then return nil end
+    
+    local DamageCfg = WeaponMods['Damage Override']
+    if not DamageCfg or not DamageCfg['Enabled'] then return nil end
+    
+    local Weapons = DamageCfg['Weapons']
+    if not Weapons then return nil end
+    
+    local ToolName = Tool and Tool.Name
+    if not ToolName then return nil end
+    
+    local Mode = Weapons[ToolName]
+    if not Mode then
+        local Stripped = ToolName:gsub('%[', ''):gsub('%]', '')
+        Mode = Weapons['[' .. Stripped .. ']'] or Weapons['[Double-Barrel SG]'] or Weapons['[Revolver]']
+    end
+    
+    if type(Mode) == 'table' then
+        local Modes = { Full = 'Head', Half = 'HumanoidRootPart', Min = 'RightFoot', Normal = 'HumanoidRootPart' }
+        local ModeKey = Mode['Mode'] or Mode['Damage'] or 'Full'
+        return Modes[ModeKey] or 'Head'
+    end
+    
+    return nil
+end
+
+local function ResolveDamageOverride(Tool, VisualHitInstance)
+    if not Tool then return VisualHitInstance end
+    
+    local TargetPartName = GetDamageOverrideMode(Tool)
+    if not TargetPartName then return VisualHitInstance end
+    
+    if not VisualHitInstance then return nil end
+    
+    local Model = VisualHitInstance:FindFirstAncestorOfClass('Model')
+    if not Model then return VisualHitInstance end
+    
+    local Humanoid = Model:FindFirstChildOfClass('Humanoid')
+    if not Humanoid then return VisualHitInstance end
+    
+    local TargetPart = Model:FindFirstChild(TargetPartName) or Model:FindFirstChild('HumanoidRootPart')
+    return TargetPart or VisualHitInstance
+end
+
 local function SetupDoubleTap()
     local Config = shared.Scare
     if not Config then return end
@@ -1230,8 +1821,59 @@ local function SetupDoubleTap()
     if not DoubleTapCfg or not DoubleTapCfg['Enabled'] then return end
     
     local DoubleTapWeapons = DoubleTapCfg['Weapons'] or {}
-    
     if #DoubleTapWeapons == 0 then return end
+    
+    local function GetWeaponCooldown(Tool)
+        local CD = Tool:FindFirstChild('ShootingCooldown')
+        if CD then return CD.Value end
+        local DelayCfg = shared.Scare and shared.Scare['Delay Modification']
+        if DelayCfg and DelayCfg['Enabled'] then
+            local Weapons = DelayCfg['Weapons'] or {}
+            local ToolName = Tool.Name
+            local Delay = Weapons[ToolName] or Weapons['[Double-Barrel SG]'] or 100
+            return Delay / 1000
+        end
+        return 0.3
+    end
+    
+    local function GetDamageOverrideTarget(Weapon, CurrentHit)
+        local WeaponMods = shared.Scare and shared.Scare['Weapon Modifications']
+        if not WeaponMods then return CurrentHit end
+        
+        local DamageCfg = WeaponMods['Damage Override']
+        if not DamageCfg or not DamageCfg['Enabled'] then return CurrentHit end
+        
+        local Weapons = DamageCfg['Weapons'] or {}
+        local ToolName = Weapon and Weapon.Name
+        if not ToolName then return CurrentHit end
+        
+        local Mode = Weapons[ToolName]
+        if not Mode then
+            local Stripped = ToolName:gsub('%[', ''):gsub('%]', '')
+            Mode = Weapons['[' .. Stripped .. ']']
+        end
+        
+        if type(Mode) == 'table' then
+            local ModeKey = Mode['Mode'] or Mode['Damage'] or 'Full'
+            local PartMap = {
+                Full = 'Head',
+                Half = 'HumanoidRootPart',
+                Min = 'RightFoot',
+                Normal = 'HumanoidRootPart',
+            }
+            local TargetPartName = PartMap[ModeKey] or 'Head'
+            
+            if CurrentHit and CurrentHit.Parent then
+                local Model = CurrentHit:FindFirstAncestorOfClass('Model')
+                if Model then
+                    local TargetPart = Model:FindFirstChild(TargetPartName) or Model:FindFirstChild('HumanoidRootPart')
+                    return TargetPart or CurrentHit
+                end
+            end
+        end
+        
+        return CurrentHit
+    end
     
     local function HookGunDoubleTap(Character)
         if not Character then return end
@@ -1253,15 +1895,129 @@ local function SetupDoubleTap()
             Tool:SetAttribute("ScareDoubleTap", true)
             
             local LastFire = 0
-            local Cooldown = 0.3
+            local Cooldown = GetWeaponCooldown(Tool)
+            local DoubleTapDelay = 0.065
+            local IsShotgun = ToolName == '[Double-Barrel SG]' or ToolName == '[TacticalShotgun]'
             
-            local function GetCooldown()
-                local CD = Tool:FindFirstChild("ShootingCooldown")
-                if CD then return CD.Value end
-                return 0.3
+            local function FireWeapon()
+                if not Tool or not Tool.Parent then return end
+                
+                local Success = false
+                pcall(function()
+                    if Tool.Activate then
+                        Tool:Activate()
+                        Success = true
+                    end
+                end)
+                if not Success then
+                    pcall(function()
+                        local RemoteEvent = Tool:FindFirstChild("RemoteEvent")
+                        if RemoteEvent and RemoteEvent:IsA("RemoteEvent") then
+                            RemoteEvent:FireServer("Shoot")
+                            Success = true
+                        end
+                    end)
+                end
+                if not Success then
+                    pcall(function()
+                        local Fire = Tool:FindFirstChild("Fire")
+                        if Fire and Fire:IsA("RemoteEvent") then
+                            Fire:FireServer()
+                            Success = true
+                        end
+                    end)
+                end
+                if not Success then
+                    pcall(function()
+                        local Shoot = Tool:FindFirstChild("Shoot")
+                        if Shoot and Shoot:IsA("RemoteEvent") then
+                            Shoot:FireServer()
+                            Success = true
+                        end
+                    end)
+                end
+                return Success
             end
             
-            Cooldown = GetCooldown()
+            local function GetFuturePrediction(Tool)
+                local FutureCfg = shared.Scare and shared.Scare['Future']
+                if not FutureCfg or not FutureCfg['Enabled'] then return nil end
+                local Weapons = FutureCfg['Weapons'] or {}
+                for WeaponName, Values in pairs(Weapons) do
+                    if ToolName == WeaponName then
+                        return {
+                            X = Values['X'] or 0.15,
+                            Y = Values['Y'] or 0.03,
+                            Z = Values['Z'] or 0.14,
+                        }
+                    end
+                end
+                return nil
+            end
+            
+            local function ApplyDamageOverride(Weapon, HitInstance)
+                local WeaponMods = shared.Scare and shared.Scare['Weapon Modifications']
+                if not WeaponMods then return HitInstance end
+                local DamageCfg = WeaponMods['Damage Override']
+                if not DamageCfg or not DamageCfg['Enabled'] then return HitInstance end
+                
+                local Weapons = DamageCfg['Weapons'] or {}
+                local Name = Weapon and Weapon.Name
+                if not Name then return HitInstance end
+                
+                local Mode = Weapons[Name]
+                if not Mode then
+                    local Stripped = Name:gsub('%[', ''):gsub('%]', '')
+                    Mode = Weapons['[' .. Stripped .. ']']
+                end
+                
+                if type(Mode) == 'table' then
+                    local ModeKey = Mode['Mode'] or Mode['Damage'] or 'Full'
+                    local PartMap = {
+                        Full = 'Head',
+                        Half = 'HumanoidRootPart',
+                        Min = 'RightFoot',
+                        Normal = 'HumanoidRootPart',
+                    }
+                    local TargetPartName = PartMap[ModeKey] or 'Head'
+                    
+                    if HitInstance and HitInstance.Parent then
+                        local Model = HitInstance:FindFirstAncestorOfClass('Model')
+                        if Model then
+                            local TargetPart = Model:FindFirstChild(TargetPartName) or Model:FindFirstChild('HumanoidRootPart')
+                            return TargetPart or HitInstance
+                        end
+                    end
+                end
+                return HitInstance
+            end
+            
+            local function GetMuzzlePosition(Tool)
+                local Handle = Tool:FindFirstChild('Handle')
+                if not Handle then return nil end
+                local MuzzleOffsets = {
+                    ['[Revolver]'] = CFrame.new(0, 0.4, 1.8),
+                    ['[Double-Barrel SG]'] = CFrame.new(0, 0.35, 2.2),
+                    ['[TacticalShotgun]'] = CFrame.new(0, 0.25, 2.5),
+                }
+                local WeaponName = Tool.Name
+                local Offset = MuzzleOffsets[WeaponName] or CFrame.new(0, 0.4, 1.8)
+                local Muzzle = Handle:FindFirstChild('Muzzle')
+                if Muzzle then return Muzzle.WorldPosition end
+                return (Handle.CFrame * Offset).Position
+            end
+            
+            local function ComputeShot(Origin, Direction, Range)
+                local Params = RaycastParams.new()
+                Params.FilterType = Enum.RaycastFilterType.Exclude
+                Params.FilterDescendantsInstances = {LocalPlayer.Character}
+                Params.IgnoreWater = true
+                local Result = Workspace:Raycast(Origin, Direction * Range, Params)
+                if Result then
+                    return Result.Instance, Result.Position, Result.Normal
+                end
+                return nil, Origin + Direction * Range, nil
+            end
             
             local DoubleTapConnection = Tool.Activated:Connect(function()
                 local CurrentTime = tick()
@@ -1271,58 +2027,83 @@ local function SetupDoubleTap()
                 local Character = LocalPlayer.Character
                 if not Character then return end
                 
-                local Handle = Tool:FindFirstChild("Handle")
-                if not Handle then return end
-                
                 local Ammo = Tool:FindFirstChild("Ammo")
                 if not Ammo or Ammo.Value <= 0 then return end
                 
-                local function FireWeapon()
-                    if not Tool or not Tool.Parent then return end
-                    
-                    local Success = false
-                    pcall(function()
-                        if Tool.Activate then
-                            Tool:Activate()
-                            Success = true
+                local Range = Tool:FindFirstChild("Range")
+                local RangeValue = Range and Range.Value or 200
+                
+                local MuzzlePos = GetMuzzlePosition(Tool)
+                if not MuzzlePos then return end
+                
+                local MousePos = UserInputService:GetMouseLocation()
+                local Ray = Camera:ViewportPointToRay(MousePos.X, MousePos.Y)
+                local Direction = Ray.Direction.Unit
+                
+                if IsShotgun then
+                    -- shotgun double tap - fires multiple pellets twice
+                    for Tap = 1, 2 do
+                        for Pellet = 1, 5 do
+                            local SpreadX = (math.random() - 0.5) * 0.08
+                            local SpreadY = (math.random() - 0.5) * 0.08
+                            local SpreadZ = (math.random() - 0.5) * 0.08
+                            local SpreadDir = Direction + Vector3.new(SpreadX, SpreadY, SpreadZ)
+                            local HitInstance, HitPos = ComputeShot(MuzzlePos, SpreadDir, RangeValue)
+                            
+                            if Tap == 2 and HitInstance then
+                                local OverrideHit = ApplyDamageOverride(Tool, HitInstance)
+                                if OverrideHit ~= HitInstance then
+                                    pcall(function()
+                                        local Handle = Tool:FindFirstChild('Handle')
+                                        if Handle then
+                                            local RemoteEvent = Tool:FindFirstChild("RemoteEvent")
+                                            if RemoteEvent then
+                                                RemoteEvent:FireServer("Shoot", Handle, MuzzlePos, OverrideHit.Position, OverrideHit, HitPos)
+                                            end
+                                        end
+                                    end)
+                                end
+                            end
                         end
-                    end)
-                    if not Success then
-                        pcall(function()
-                            local RemoteEvent = Tool:FindFirstChild("RemoteEvent")
-                            if RemoteEvent and RemoteEvent:IsA("RemoteEvent") then
-                                RemoteEvent:FireServer("Shoot")
-                                Success = true
-                            end
-                        end)
+                        if Tap == 1 then
+                            task.wait(DoubleTapDelay)
+                        end
+                        FireWeapon()
                     end
-                    if not Success then
-                        pcall(function()
-                            local Fire = Tool:FindFirstChild("Fire")
-                            if Fire and Fire:IsA("RemoteEvent") then
-                                Fire:FireServer()
-                                Success = true
-                            end
-                        end)
-                    end
-                    if not Success then
-                        pcall(function()
-                            local Shoot = Tool:FindFirstChild("Shoot")
-                            if Shoot and Shoot:IsA("RemoteEvent") then
-                                Shoot:FireServer()
-                                Success = true
-                            end
-                        end)
-                    end
-                end
-                
-                FireWeapon()
-                
-                local DelayTime = 0.075
-                task.wait(DelayTime)
-                
-                if Tool and Tool.Parent and Ammo and Ammo.Value > 0 then
+                else
+                    -- pistol/revolver double tap - two precise shots with optional damage override on second
+                    local FuturePred = GetFuturePrediction(Tool)
+                    local Handle = Tool:FindFirstChild('Handle')
+                    
+                    -- first shot - normal
                     FireWeapon()
+                    task.wait(DoubleTapDelay)
+                    
+                    -- second shot - with future prediction + damage override
+                    if FuturePred and Handle then
+                        local OriginalCF = Handle.CFrame
+                        Handle.CFrame = Handle.CFrame * CFrame.new(FuturePred.X or 0, FuturePred.Y or 0, FuturePred.Z or 0)
+                        
+                        local HitInstance, HitPos = ComputeShot(MuzzlePos, Direction, RangeValue)
+                        local OverrideHit = ApplyDamageOverride(Tool, HitInstance)
+                        
+                        FireWeapon()
+                        Handle.CFrame = OriginalCF
+                    else
+                        -- second shot without future
+                        local HitInstance, HitPos = ComputeShot(MuzzlePos, Direction, RangeValue)
+                        local OverrideHit = ApplyDamageOverride(Tool, HitInstance)
+                        
+                        if OverrideHit and OverrideHit ~= HitInstance then
+                            pcall(function()
+                                local RemoteEvent = Tool:FindFirstChild("RemoteEvent")
+                                if RemoteEvent then
+                                    RemoteEvent:FireServer("Shoot", Handle, MuzzlePos, OverrideHit.Position, OverrideHit, HitPos)
+                                end
+                            end)
+                        end
+                        FireWeapon()
+                    end
                 end
             end)
             
@@ -1367,7 +2148,6 @@ end
 
 SetupDoubleTap()
 
--- anti stomp
 local function SetupAntiStomp()
     local PanicSystem = shared.Scare and shared.Scare['Panic System']
     if not PanicSystem or not PanicSystem['Anti Stomp'] then return end
@@ -1422,7 +2202,6 @@ local function SetupAntiStomp()
     state.antiStompConnection = LocalPlayer.CharacterAdded:Connect(HandleAntiStomp)
 end
 
--- panic ground - forces player to nearest ground below them from any distance
 local function SetupPanicGround()
     local PanicSystem = shared.Scare and shared.Scare['Panic System']
     if not PanicSystem then return end
@@ -1470,7 +2249,6 @@ local function SetupPanicGround()
     end)
 end
 
--- auto reset
 local function SetupAutoReset()
     local PanicSystem = shared.Scare and shared.Scare['Panic System']
     if not PanicSystem then return end
@@ -1495,7 +2273,6 @@ local function SetupAutoReset()
     end)
 end
 
--- anti fall
 local function SetupAntiFall(Character)
     if not Character then return end
     local Humanoid = Character:FindFirstChildOfClass('Humanoid') or Character:WaitForChild('Humanoid', 10)
@@ -1550,7 +2327,6 @@ end
 
 SetupAvatarHandlers()
 
--- inventory sorter
 local function SetupInventorySorter()
     local Config = shared.Scare
     if not Config then return end
@@ -1629,7 +2405,6 @@ end
 
 SetupInventorySorter()
 
--- skin changer (da hood)
 local DaHoodPlaceId = {
     [2788229376] = true,
 }
@@ -2843,11 +3618,9 @@ local function CleanupFOVBoxes()
     end
 end
 
--- full cleanup
 local function FullCleanup()
     CleanupAvatarHandlers()
     
-    -- clean up hops
     if state.hopsConnection then
         pcall(function() state.hopsConnection:Disconnect() end)
         state.hopsConnection = nil
@@ -2857,20 +3630,17 @@ local function FullCleanup()
     end
     state.hopsHumanoid = nil
     
-    -- clean up double tap
     for _, conn in pairs(state.doubleTapConnections) do
         pcall(function() conn:Disconnect() end)
     end
     state.doubleTapConnections = {}
     
-    -- clean up panic ground
     if state.panicGroundConnection then
         pcall(function() state.panicGroundConnection:Disconnect() end)
         state.panicGroundConnection = nil
     end
     state.panicGroundActive = false
     
-    -- clean up inventory sorter
     state.sorterActive = false
     
     local connections = {}
@@ -3064,6 +3834,8 @@ local function FullCleanup()
     state.panicGroundActive = false
     state.panicGroundConnection = nil
     state.sorterActive = false
+    state.damageOverrideCache = {}
+    state.futurePredictionCache = {}
     
     for _, conn in pairs(state.delayConnections) do
         pcall(function() conn:Disconnect() end)
@@ -3285,7 +4057,6 @@ local function getClosestPoint(character, cfgOverride)
     return nil
 end
 
--- movement modifications
 local function SetupMovementModifications()
     local uis = UserInputService
     local isSpeedEnabled = false
@@ -3479,7 +4250,6 @@ for _, Player in pairs(Players:GetPlayers()) do
     end
 end
 
--- validate target
 local function ValidateTarget(mode)
     if mode == "Silent" then
         if not State.SilentTargetLocked then return end
@@ -3610,7 +4380,6 @@ if GunHandler then
     OriginalGetAim = GunHandler.getAim
 end
 
--- silent aim hook
 if GunHandler and OriginalGetAim then
     GunHandler.getAim = function(origin, range)
         local Config = shared.Scare
@@ -3720,7 +4489,6 @@ if GunHandler and OriginalGetAim then
     end
 end
 
--- input began
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
@@ -4016,7 +4784,6 @@ local function IsSeparateKeybindsEnabled()
     return separate and separate['Enabled'] == true
 end
 
--- handle shared key
 local function HandleSharedKey(input, processed)
     if processed then return end
     
@@ -4198,7 +4965,6 @@ local function HandleSharedKey(input, processed)
     end
 end
 
--- handle trigger key
 local function HandleTriggerKey(input, processed)
     if processed then return end
     
@@ -4252,7 +5018,6 @@ local function HandleTriggerKey(input, processed)
     end
 end
 
--- handle silent key
 local function HandleSilentKey(input, processed)
     if processed then return end
     
@@ -4301,7 +5066,6 @@ local function HandleSilentKey(input, processed)
     end
 end
 
--- handle camera key
 local function HandleCameraKey(input, processed)
     if processed then return end
     
@@ -4511,7 +5275,6 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- update camera fov
 local function UpdateCameraFOV()
     local Config = shared.Scare
     local CameraCfg = Config and Config["Camera Aimbot"]
@@ -4596,7 +5359,6 @@ local function UpdateCameraFOV()
     end
 end
 
--- update trigger fov
 local function UpdateTriggerFOV()
     local Config = shared.Scare
     local TriggerCfg = Config and Config["Trigger Bot"]
@@ -4688,7 +5450,6 @@ local function UpdateTriggerFOV()
     end
 end
 
--- update silent fov
 local function UpdateSilentFOV()
     local Config = shared.Scare
     local SilentCfg = Config and Config["Silent Aimbot"]
@@ -4773,7 +5534,6 @@ local function UpdateSilentFOV()
     end
 end
 
--- update esp
 local function UpdateESP()
     if not state.visualsEnabled or not state.namesVisible then
         if LastFrame.ESPVisible then
@@ -4854,7 +5614,6 @@ local function UpdateESP()
     end
 end
 
--- update panel
 local function UpdatePanel()
     if not state.visualsEnabled or not state.panelVisible then
         if LastFrame.PanelVisible then
@@ -5214,7 +5973,8 @@ local function UpdatePanel()
 
             LabelIdx = LabelIdx + 1
             local L4 = PanelLabels[LabelIdx]
-            if L4 then                local speedColor = (walkSpeedStatus == "On") and CurrentColor or FC
+            if L4 then
+                local speedColor = (walkSpeedStatus == "On") and CurrentColor or FC
                 L4.Text = string.format('Speedwalk <font color="rgb(%d,%d,%d)">:</font> <font color="rgb(%d,%d,%d)">%s</font>',
                     math.floor(FC.R*255), math.floor(FC.G*255), math.floor(FC.B*255),
                     math.floor(speedColor.R*255), math.floor(speedColor.G*255), math.floor(speedColor.B*255),
@@ -5283,7 +6043,6 @@ local function UpdatePanel()
     end
 end
 
--- update trigger bot
 local function UpdateTriggerBot()
     local Config = shared.Scare
     local TriggerCfg = Config and Config["Trigger Bot"]
@@ -5296,7 +6055,6 @@ local function UpdateTriggerBot()
     local Target = State.Targets.Trigger
     if not Target then return end
     
-    -- check forcefield - if target has forcefield, do not shoot but keep lock
     if HasForceField(Target) then
         return
     end
@@ -5441,7 +6199,6 @@ local function UpdateTriggerBot()
     end
 end
 
--- update shared target
 local function UpdateSharedTarget()
     if state.sharedTargetLocked and state.sharedTarget then
         if not CheckChecksNoVisible(state.sharedTarget, "Silent Aimbot") then
@@ -5454,7 +6211,6 @@ local function UpdateSharedTarget()
     end
 end
 
--- get camera target part
 local function GetCameraTargetPart(Player)
     local Character = Player.Character
     if not Character then return nil end
@@ -5494,7 +6250,6 @@ local function GetCameraTargetPart(Player)
     return Character:FindFirstChild("HumanoidRootPart")
 end
 
--- update camera aimbot
 local function UpdateCameraAimbot()
     local Config = shared.Scare
     local CameraCfg = Config and Config["Camera Aimbot"]
@@ -5638,7 +6393,6 @@ local function UpdateCameraAimbot()
     end
 end
 
--- main render loop
 local preRenderConnection = nil
 preRenderConnection = RunService.RenderStepped:Connect(function()
     if not shared.Scare then
