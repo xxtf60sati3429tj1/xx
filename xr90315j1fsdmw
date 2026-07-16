@@ -1,3 +1,4 @@
+
 task.spawn(function()
     local Players = game:GetService("Players")
     local LocalPlayer = Players.LocalPlayer
@@ -1536,18 +1537,14 @@ end
 local function SetupNoJumpCooldown()
     local JumpSettings = shared.Scare and shared.Scare['Jump Modifications']
     if not JumpSettings or not JumpSettings['No Jump Cooldown'] then return end
-    
+
     local function HandleCooldown(Character)
         if not Character then return end
-        local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+        
+        local Humanoid = Character:WaitForChild("Humanoid", 5)
         if not Humanoid then return end
-        
-        if state.jumpModConnection then
-            pcall(function() state.jumpModConnection:Disconnect() end)
-            state.jumpModConnection = nil
-        end
-        
-        state.jumpModConnection = Humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
+
+        local function ApplyCooldownFix()
             local JSettings = shared.Scare and shared.Scare['Jump Modifications']
             if Humanoid.JumpPower == 0 then
                 if JSettings and JSettings['Enabled'] then
@@ -1557,11 +1554,29 @@ local function SetupNoJumpCooldown()
                     Humanoid.JumpPower = 50
                 end
             end
-        end)
+        end
+
+        local connection = Humanoid:GetPropertyChangedSignal("JumpPower"):Connect(ApplyCooldownFix)
+        
+        return connection
     end
-    
-    if LocalPlayer.Character then HandleCooldown(LocalPlayer.Character) end
-    LocalPlayer.CharacterAdded:Connect(HandleCooldown)
+
+    local activeConnection = nil
+
+    local function OnCharacterAdded(Character)
+        if activeConnection then
+            pcall(function() activeConnection:Disconnect() end)
+            activeConnection = nil
+        end
+        
+        activeConnection = HandleCooldown(Character)
+    end
+
+    if LocalPlayer.Character then
+        OnCharacterAdded(LocalPlayer.Character)
+    end
+
+    LocalPlayer.CharacterAdded:Connect(OnCharacterAdded)
 end
 
 local function SetupWalljump()
