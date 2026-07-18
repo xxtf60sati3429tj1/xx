@@ -261,7 +261,7 @@ do
             return Font.new(getcustomasset(`{Library.Directory .. Library.Folders.Assets}/{Name}.font`))
         end
 
-        Library.Font = Enum.Font.GothamLight
+        Library.Font = Enum.Font.SourceSansBold
     end
 
     Library.Exit = function(Self)
