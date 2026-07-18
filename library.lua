@@ -261,10 +261,7 @@ do
             return Font.new(getcustomasset(`{Library.Directory .. Library.Folders.Assets}/{Name}.font`))
         end
 
-        Library.Font = CustomFont:New("SmallestPixel7", 400, "Regular", {
-            Id = "SmallestPixel7",
-            Url = "https://github.com/sametexe001/luas/raw/refs/heads/main/smallest_pixel-7.ttf"
-        })
+        Library.Font = Enum.Font.GothamLight
     end
 
     Library.Exit = function(Self)
