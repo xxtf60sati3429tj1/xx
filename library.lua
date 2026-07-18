@@ -9076,7 +9076,7 @@ do
 
             local Dropdown = {
                 Name = Params.Name or Params.name or "Dropdown",
-                OptionItems = Params.Items or Params.items or {},
+                OptionItems = Params.Items or Params.items or Params.Options or Params.options or {},
                 Tooltip = Params.Tooltip or Params.tooltip or nil,
                 Flag = Params.Flag or Params.flag or (Params.Name or Params.name),
                 Default = Params.Default or Params.default or "",
@@ -10457,7 +10457,7 @@ do
             local Page = Self:Page({ Name = "Settings", Icon = "rbxassetid://0" })
 
             local ConfigsSubPage = Page:SubPage({ Name = "Configs" })
-            local OtherSubPage = Page:SubPage({ Name = "Other" })
+            local MenuSubPage = Page:SubPage({ Name = "Menu" })
 
             do
                 local ConfigName
@@ -10588,21 +10588,7 @@ do
             end
 
             do
-                local ThemingSection = OtherSubPage:Section({ Name = "Theming", Side = 1 })
-                do
-                    for Index, Value in Library.Theme do
-                        ThemingSection:Label({ Name = Index }):Colorpicker({
-                            Flag = Index .. "Theme",
-                            Default = Value,
-                            Callback = function(Value)
-                                Library.Theme[Index] = Value
-                                Library:ChangeTheme(Index, Value)
-                            end
-                        })
-                    end
-                end
-
-                local SettingsSection = OtherSubPage:Section({ Name = "Settings", Side = 2 })
+                local SettingsSection = MenuSubPage:Section({ Name = "Settings", Side = 1 })
                 do
                     SettingsSection:Label({ Name = "UI Bind" }):Keybind({
                         Flag = "UIBind",
@@ -10649,9 +10635,24 @@ do
                             Library.Animation.Time = Value
                         end
                     })
+
+                    SettingsSection:Slider({
+                        Name = "Menu Scale",
+                        Flag = "MenuScale",
+                        Default = 1,
+                        Min = 0.5,
+                        Max = 2,
+                        Decimals = 0.01,
+                        Callback = function(Value)
+                            local gui = Library.MainWindow.Instance
+                            if gui and gui:FindFirstChildOfClass("UIScale") then
+                                gui:FindFirstChildOfClass("UIScale").Scale = Value
+                            end
+                        end
+                    })
                 end
 
-                local WidgetsSection = OtherSubPage:Section({ Name = "Widgets", Side = 2 })
+                local WidgetsSection = MenuSubPage:Section({ Name = "Widgets", Side = 2 })
                 do
                     for _, WidgetData in Library.SettingsWidgets do
                         local WidgetToggle = WidgetsSection:Toggle({
