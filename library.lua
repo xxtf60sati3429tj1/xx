@@ -10456,8 +10456,8 @@ do
         Library.CreateSettingsPage = function(Self)
             local Page = Self:Page({ Name = "Settings", Icon = "rbxassetid://0" })
 
-            local ConfigsSubPage = Page:SubPage({ Name = "Configs" })
             local MenuSubPage = Page:SubPage({ Name = "Menu" })
+            local ConfigsSubPage = Page:SubPage({ Name = "Configs" })
 
             do
                 local ConfigName
