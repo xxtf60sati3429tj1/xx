@@ -1,4 +1,5 @@
 
+
 if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']['Ui Mode'] then
     pcall(function()
         local library, themes = (function() 
@@ -288,8 +289,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 				local x_cond = Object.AbsolutePosition.X <= mouse.X and mouse.X <= Object.AbsolutePosition.X + Object.AbsoluteSize.X
 				
 				return (y_cond and x_cond)
-			end 
-		end  
+    end
+end
 
 		function library:make_resizable(frame) 
 			local Frame = Instance.new("TextButton")
@@ -603,7 +604,7 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 				local UIGradient = library:create("UIGradient", {
 					Parent = watermark_background,
 					Name = "",
-					Color = rgbseq{rgbkey(0, rgb(41, 41, 55)), rgbkey(1, rgb(35, 35, 47))}
+					Color = rgbseq{rgbkey(0, rgb(25, 25, 25)), rgbkey(1, rgb(18, 18, 18))}
 				}); library:apply_theme(UIGradient, "contrast", "Color")
 				
 				local text = library:create("TextLabel", {
@@ -669,17 +670,18 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 						Name = "" 
 					})
 					
-					items.main_holder = library:create("Frame", {
-						Parent = items.sgui,
-						Name = "",
-						AnchorPoint = vec2(cfg.anchor_point.X, cfg.anchor_point.Y),
-						Position = cfg.position,
-						Active = true, 
-						BorderColor3 = rgb(0, 0, 0),
-						Size = cfg.size,
-						BorderSizePixel = 0,
-						BackgroundColor3 = themes.preset.outline
-					})
+				items.main_holder = library:create("Frame", {
+					Parent = items.sgui,
+					Name = "",
+					AnchorPoint = vec2(cfg.anchor_point.X, cfg.anchor_point.Y),
+					Position = cfg.position,
+					Active = true, 
+					BorderColor3 = rgb(0, 0, 0),
+					Size = cfg.size,
+					BorderSizePixel = 0,
+					BackgroundColor3 = themes.preset.outline
+				})
+				library:create("UICorner", {Parent = items.main_holder, CornerRadius = UDim.new(0, 6)})
 					library:draggify(items.main_holder)
 					library:make_resizable(items.main_holder)
 
@@ -714,35 +716,37 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 
 					--library:apply_theme(main_holder, "outline", "BackgroundColor3") 
 					
-					items.window_inline = library:create("Frame", {
-						Parent = items.main_holder,
-						Name = "",
-						Position = dim2(0, 1, 0, 1),
-						BorderColor3 = rgb(0, 0, 0),
-						Size = dim2(1, -2, 1, -2),
-						BorderSizePixel = 0,
-						BackgroundColor3 = themes.preset.accent
-					})
-					
-					library:apply_theme(items.window_inline, "accent", "BackgroundColor3") 
-					
-					items.window_holder = library:create("Frame", {
-						Parent = items.window_inline,
-						Name = "",
-						Position = dim2(0, 1, 0, 1),
-						BorderColor3 = themes.preset.outline,
-						Size = dim2(1, -2, 1, -2),
-						BorderSizePixel = 0,
-						BackgroundColor3 = rgb(255, 255, 255)
-					})
+				items.window_inline = library:create("Frame", {
+					Parent = items.main_holder,
+					Name = "",
+					Position = dim2(0, 1, 0, 1),
+					BorderColor3 = rgb(0, 0, 0),
+					Size = dim2(1, -2, 1, -2),
+					BorderSizePixel = 0,
+					BackgroundColor3 = themes.preset.accent
+				})
+				library:create("UICorner", {Parent = items.window_inline, CornerRadius = UDim.new(0, 5)})
+				
+				library:apply_theme(items.window_inline, "accent", "BackgroundColor3") 
+				
+				items.window_holder = library:create("Frame", {
+					Parent = items.window_inline,
+					Name = "",
+					Position = dim2(0, 1, 0, 1),
+					BorderColor3 = themes.preset.outline,
+					Size = dim2(1, -2, 1, -2),
+					BorderSizePixel = 0,
+					BackgroundColor3 = rgb(255, 255, 255)
+				})
+				library:create("UICorner", {Parent = items.window_holder, CornerRadius = UDim.new(0, 4)})
 								
 					items.UIGradient = library:create("UIGradient", {
 						Parent = items.window_holder,
 						Name = "",
 						Rotation = 90,
 						Color = rgbseq{
-						rgbkey(0, rgb(41, 41, 55)),
-						rgbkey(1, rgb(35, 35, 47))
+						rgbkey(0, rgb(25, 25, 25)),
+						rgbkey(1, rgb(18, 18, 18))
 					}
 					})
 		
@@ -816,8 +820,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 						Name = "",
 						Rotation = 90,
 						Color = rgbseq{
-							rgbkey(0, rgb(41, 41, 55)),
-							rgbkey(1, rgb(35, 35, 47))
+							rgbkey(0, rgb(25, 25, 25)),
+							rgbkey(1, rgb(18, 18, 18))
 						}
 					})
 					
@@ -889,8 +893,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 						Name = "",
 						Rotation = 90,
 						Color = rgbseq{
-							rgbkey(0, rgb(35, 35, 47)),
-							rgbkey(1, rgb(41, 41, 55))
+							rgbkey(0, rgb(18, 18, 18)),
+							rgbkey(1, rgb(25, 25, 25))
 						}
 					}) library:apply_theme(UIGradient, "contrast", "Color") 
 					
@@ -1230,11 +1234,12 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 			local window = {opened = true}            
 			local opened = {}
 			local dock_outline;
-			local blur = library:create( "BlurEffect" , {
-				Parent = lighting;
-				Enabled = true;
-				Size = 15
-			});    
+		local blur = library:create( "BlurEffect" , {
+			Parent = lighting;
+			Enabled = true;
+			Size = 15
+		});    
+		window.blur = blur
 
 			library.cache = library:create("ScreenGui", {
 				Enabled = false,
@@ -1368,8 +1373,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 					Name = "",
 					Rotation = 90,
 					Color = rgbseq{
-						rgbkey(0, rgb(41, 41, 55)),
-						rgbkey(1, rgb(35, 35, 47))
+						rgbkey(0, rgb(25, 25, 25)),
+						rgbkey(1, rgb(18, 18, 18))
 					}
 				}) library:apply_theme(UIGradient, "contrast", "Color") 
 			-- 
@@ -1593,15 +1598,16 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 				
 				library:apply_theme(inline, "inline", "BackgroundColor3") 
 
-				local background = library:create("Frame", {
-					Parent = inline,
-					Name = "\0",
-					Position = dim2(0, 1, 0, 1),
-					BorderColor3 = rgb(0, 0, 0),
-					Size = dim2(1, -2, 1, -2),
-					BorderSizePixel = 0,
-					BackgroundColor3 = rgb(255, 255, 255)
-				})
+		local background = library:create("Frame", {
+			Parent = inline,
+			Name = "\0",
+			Position = dim2(0, 1, 0, 1),
+			BorderColor3 = rgb(0, 0, 0),
+			Size = dim2(1, -2, 1, -2),
+			BorderSizePixel = 0,
+			BackgroundColor3 = rgb(255, 255, 255)
+		})
+		library:create("UICorner", {Parent = background, CornerRadius = UDim.new(0, 3)})
 
 				library.section_holder = background
 
@@ -1617,8 +1623,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 					Parent = background,
 					Rotation = 90,
 					Color = rgbseq{
-						rgbkey(0, rgb(41, 41, 55)),
-						rgbkey(1, rgb(35, 35, 47))
+						rgbkey(0, rgb(25, 25, 25)),
+						rgbkey(1, rgb(18, 18, 18))
 					}
 				})
 				
@@ -1627,15 +1633,17 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 			-- 
 
 			-- theming 
-				local style = library:panel({
-					name = "Style", 
-					anchor_point = vec2(0, 0),
-					size = dim2(0, 394, 0, 464),
-					position = dim2(0, main_window.items.main_holder.AbsolutePosition.X + main_window.items.main_holder.AbsoluteSize.X + 2, 0, main_window.items.main_holder.AbsolutePosition.Y),
-					image = "rbxassetid://115194686863276",
-				})
+			local style = library:panel({
+				name = "Style", 
+				anchor_point = vec2(0, 0),
+				size = dim2(0, 394, 0, 464),
+				position = dim2(0, main_window.items.main_holder.AbsolutePosition.X + main_window.items.main_holder.AbsoluteSize.X + 2, 0, main_window.items.main_holder.AbsolutePosition.Y),
+				image = "rbxassetid://115194686863276",
+			})
+			window.style_panel = style
 
 				local watermark = library:watermark({default = os.date('Atlanta |  - %b %d %Y - %H:%M:%S')})  
+			window.watermark = watermark
 
 				task.spawn(function()
 					while task.wait(1) do 
@@ -1732,12 +1740,13 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 			-- 
 
 			-- cfg holder
-				local holder = library:panel({
-					name = "Configurations", 
-					size = dim2(0, 324, 0, 410),
-					position = dim2(0, items.main_holder.AbsolutePosition.X + items.main_holder.AbsoluteSize.X + 2, 0, items.main_holder.AbsolutePosition.Y),
-					image = "rbxassetid://105199726008012",
-				}) 
+			local holder = library:panel({
+				name = "Configurations", 
+				size = dim2(0, 324, 0, 410),
+				position = dim2(0, items.main_holder.AbsolutePosition.X + items.main_holder.AbsoluteSize.X + 2, 0, items.main_holder.AbsolutePosition.Y),
+				image = "rbxassetid://105199726008012",
+			}) 
+			window.config_panel = holder
 
 				local items = holder.items
 
@@ -1776,29 +1785,24 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 					section:button({name = "Unload Config", callback = function()
 						library:load_config(library.old_config)
 					end})
-					section:button({name = "Unload Menu", callback = function()
-						library:load_config(library.old_config)
-
-						for _, gui in library.guis do 
-							gui:Destroy() 
-						end 
-
-						for _, connection in library.connections do 
-							connection:Disconnect() 
-						end
-
-						blur:Destroy()
-					end})
+				section:button({name = "Unload Menu", callback = function()
+					library:load_config(library.old_config)
+					pcall(function() _G.SoundFullCleanup() end)
+					for _, gui in library.guis do pcall(function() gui:Destroy() end) end
+					for _, connection in library.connections do pcall(function() connection:Disconnect() end) end
+					pcall(function() window.blur:Destroy() end)
+				end})
 			-- 
 					
 			-- esp preview
-				local holder = library:panel({
-					name = "ESP Preview", 
-					anchor_point = vec2(0, 0),
-					size = dim2(0, 300, 0, 325),
-					position = dim2(0, style.items.main_holder.AbsolutePosition.X, 0, style.items.main_holder.AbsolutePosition.Y + style.items.main_holder.AbsoluteSize.Y + 2),
-					image = "rbxassetid://77684377836328",
-				})  
+			local holder = library:panel({
+				name = "ESP Preview", 
+				anchor_point = vec2(0, 0),
+				size = dim2(0, 300, 0, 325),
+				position = dim2(0, style.items.main_holder.AbsolutePosition.X, 0, style.items.main_holder.AbsolutePosition.Y + style.items.main_holder.AbsoluteSize.Y + 2),
+				image = "rbxassetid://77684377836328",
+			})  
+			window.esp_preview_panel = holder
 				
 				local items = holder.items
 				
@@ -1807,13 +1811,14 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 			--  
 
 			-- playerlist 
-				local holder = library:panel({
-					name = "Playerlist", 
-					anchor_point = vec2(0, 0),
-					size = dim2(0, 529, 0, 445),
-					position = dim2(0, main_window.items.main_holder.AbsolutePosition.X - 531, 0, main_window.items.main_holder.AbsolutePosition.Y),
-					image = "rbxassetid://107070078834415",
-				})  
+			local holder = library:panel({
+				name = "Playerlist", 
+				anchor_point = vec2(0, 0),
+				size = dim2(0, 529, 0, 445),
+				position = dim2(0, main_window.items.main_holder.AbsolutePosition.X - 531, 0, main_window.items.main_holder.AbsolutePosition.Y),
+				image = "rbxassetid://107070078834415",
+			})  
+			window.playerlist_panel = holder
 				
 				local items = holder.items
 
@@ -1872,8 +1877,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 				Name = "",
 				Rotation = 90,
 				Color = rgbseq{
-					rgbkey(0, rgb(41, 41, 55)),
-					rgbkey(1, rgb(35, 35, 47))
+					rgbkey(0, rgb(25, 25, 25)),
+					rgbkey(1, rgb(18, 18, 18))
 				}
 			}) library:apply_theme(UIGradient, "contrast", "Color") 
 			
@@ -2543,7 +2548,7 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 				local UIGradient = library:create("UIGradient", {
 					Parent = background,
 					Rotation = 90,
-					Color = rgbseq{rgbkey(0, rgb(41, 41, 55)), rgbkey(1, rgb(35, 35, 47))}
+					Color = rgbseq{rgbkey(0, rgb(25, 25, 25)), rgbkey(1, rgb(18, 18, 18))}
 				}) library:apply_theme(UIGradient, "contrast", "Color") 
 
 				local text = library:create("TextLabel", {
@@ -2627,17 +2632,17 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 			
 			local holder = path or self.holder
 			
-			local column = library:create("Frame", {
-				Parent = holder,
-				BackgroundTransparency = 1,
-				Name = "\0",
-				BorderColor3 = rgb(0, 0, 0),
-				Size = dim2(1, 0, 1, 0),
-				BorderSizePixel = 0,
-				BackgroundColor3 = themes.preset.inline
-			}) library:apply_theme(column, "inline", "BackgroundColor3") 
-			
-			library:create("UIListLayout", {
+	local column = library:create("Frame", {
+		Parent = holder,
+		BackgroundTransparency = 1,
+		Name = "\0",
+		BorderColor3 = rgb(0, 0, 0),
+		Size = dim2(1, 0, 1, 0),
+		BorderSizePixel = 0,
+		BackgroundColor3 = themes.preset.inline
+	}) library:apply_theme(column, "inline", "BackgroundColor3") 
+	
+	library:create("UIListLayout", {
 				Parent = column,
 				Padding = dim(0, 4),
 				SortOrder = Enum.SortOrder.LayoutOrder,
@@ -2655,14 +2660,15 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 				sections = {},
 			}
 
-			local section = library:create("Frame", {
-				Parent = self.holder,
-				Name = "",
-				BorderColor3 = rgb(0, 0, 0),
-				Size = dim2(1, 0, 1, 0),
-				BorderSizePixel = 0,
-				BackgroundColor3 = themes.preset.inline
-			}) library:apply_theme(section, "inline", "BackgroundColor3")
+		local section = library:create("Frame", {
+			Parent = self.holder,
+			Name = "",
+			BorderColor3 = rgb(0, 0, 0),
+			Size = dim2(1, 0, 1, 0),
+			BorderSizePixel = 0,
+			BackgroundColor3 = themes.preset.inline
+		}) library:apply_theme(section, "inline", "BackgroundColor3")
+		library:create("UICorner", {Parent = section, CornerRadius = UDim.new(0, 4)})
 			
 			local inline = library:create("Frame", {
 				Parent = section,
@@ -2682,9 +2688,10 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 				BorderColor3 = rgb(0, 0, 0),
 				Size = dim2(1, -2, 1, -2),
 				BorderSizePixel = 0,
-				ZIndex = 1,
-				BackgroundColor3 = rgb(255, 255, 255)
-			})
+			ZIndex = 1,
+			BackgroundColor3 = rgb(255, 255, 255)
+		})
+		library:create("UICorner", {Parent = __background, CornerRadius = UDim.new(0, 3)})
 			
 			local accent = library:create("Frame", {
 				Parent = __background,
@@ -2707,7 +2714,7 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 				Parent = __background,
 				Name = "",
 				Rotation = 90,
-				Color = rgbseq{rgbkey(0, rgb(41, 41, 55)), rgbkey(1, rgb(35, 35, 47))}
+				Color = rgbseq{rgbkey(0, rgb(25, 25, 25)), rgbkey(1, rgb(18, 18, 18))}
 			}) library:apply_theme(UIGradient, "contrast", "Color") 
 			
 			local tab_holder = library:create("Frame", {
@@ -2751,8 +2758,9 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 						TextSize = 12,
 						BackgroundColor3 = themes.preset.outline
 					}) library:apply_theme(tabb, "outline", "BackgroundColor3") 
-					
-					local background = library:create("Frame", {
+				library:create("UICorner", {Parent = tabb, CornerRadius = UDim.new(0, 4)})
+				
+				local background = library:create("Frame", {
 						Parent = tabb,
 						Name = "",
 						Size = dim2(1, 0, 1, -2),
@@ -2767,7 +2775,7 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 						Parent = background,
 						Name = "",
 						Rotation = 90,
-						Color = rgbseq{rgbkey(0, rgb(41, 41, 55)), rgbkey(1, rgb(35, 35, 47))}
+						Color = rgbseq{rgbkey(0, rgb(25, 25, 25)), rgbkey(1, rgb(18, 18, 18))}
 					}) library:apply_theme(UIGradient, "contrast", "Color")
 					
 					local text = library:create("TextLabel", {
@@ -2872,14 +2880,15 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 				name = options.name or "Section", 
 			}
 			
-			local section = library:create("Frame", {
-				Parent = self.holder,
-				Name = "\0",
-				BorderColor3 = rgb(0, 0, 0),
-				Size = dim2(1, 0, 1, 0),
-				BorderSizePixel = 0,
-				BackgroundColor3 = themes.preset.inline
-			}) library:apply_theme(section, "inline", "BackgroundColor3") 
+		local section = library:create("Frame", {
+			Parent = self.holder,
+			Name = "\0",
+			BorderColor3 = rgb(0, 0, 0),
+			Size = dim2(1, 0, 1, 0),
+			BorderSizePixel = 0,
+			BackgroundColor3 = themes.preset.inline
+		}) library:apply_theme(section, "inline", "BackgroundColor3") 
+		library:create("UICorner", {Parent = section, CornerRadius = UDim.new(0, 4)})
 
 			local inline = library:create("Frame", {
 				Parent = section,
@@ -2943,8 +2952,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 				Parent = background,
 				Rotation = 90,
 				Color = rgbseq{
-					rgbkey(0, rgb(41, 41, 55)),
-					rgbkey(1, rgb(35, 35, 47))
+					rgbkey(0, rgb(25, 25, 25)),
+					rgbkey(1, rgb(18, 18, 18))
 				}
 			}) library:apply_theme(UIGradient, "contrast", "Color") 
 
@@ -3166,8 +3175,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 					Parent = contrast,
 					Rotation = 90,
 					Color = rgbseq{
-						rgbkey(0, rgb(41, 41, 55)),
-						rgbkey(1, rgb(35, 35, 47))
+						rgbkey(0, rgb(25, 25, 25)),
+						rgbkey(1, rgb(18, 18, 18))
 					}
 				}); library:apply_theme(UIGradient, "contrast", "Color")
 				
@@ -3403,8 +3412,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 					Rotation = 90,
 					Name = "_",
 					Color = rgbseq{
-						rgbkey(0, rgb(41, 41, 55)),
-						rgbkey(1, rgb(35, 35, 47))
+						rgbkey(0, rgb(25, 25, 25)),
+						rgbkey(1, rgb(18, 18, 18))
 					}
 				}) library:apply_theme(UIGradient, "contrast", "Color") 
 			--  
@@ -3553,8 +3562,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 					Rotation = 90,
 					Name = "_",
 					Color = rgbseq{
-					rgbkey(0, rgb(41, 41, 55)),
-					rgbkey(1, rgb(35, 35, 47))
+					rgbkey(0, rgb(25, 25, 25)),
+					rgbkey(1, rgb(18, 18, 18))
 				}
 				}) library:apply_theme(UIGradient, "contrast", "Color") 
 				
@@ -3653,8 +3662,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 					Rotation = 90,
 					Name = "_",
 					Color = rgbseq{
-						rgbkey(0, rgb(41, 41, 55)),
-						rgbkey(1, rgb(35, 35, 47))
+						rgbkey(0, rgb(25, 25, 25)),
+						rgbkey(1, rgb(18, 18, 18))
 					}
 				}) library:apply_theme(UIGradient, "contrast", "Color") 
 				
@@ -4118,8 +4127,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 				Name = "",
 				Rotation = 90,
 				Color = rgbseq{
-					rgbkey(0, rgb(41, 41, 55)),
-					rgbkey(1, rgb(35, 35, 47))
+					rgbkey(0, rgb(25, 25, 25)),
+					rgbkey(1, rgb(18, 18, 18))
 				}
 			}); library:apply_theme(UIGradient, "contrast", "Color") 
 			
@@ -4243,8 +4252,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 					Name = "",
 					Rotation = 90,
 					Color = rgbseq{
-						rgbkey(0, rgb(41, 41, 55)),
-						rgbkey(1, rgb(35, 35, 47))
+						rgbkey(0, rgb(25, 25, 25)),
+						rgbkey(1, rgb(18, 18, 18))
 					}
 				}); library:apply_theme(UIGradient, "contrast", "Color")
 				
@@ -4652,8 +4661,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 					Parent = contrast,
 					Rotation = 90,
 					Color = rgbseq{
-						rgbkey(0, rgb(41, 41, 55)),
-						rgbkey(1, rgb(35, 35, 47))
+						rgbkey(0, rgb(25, 25, 25)),
+						rgbkey(1, rgb(18, 18, 18))
 					}
 				}) library:apply_theme(UIGradient, "contrast", "Color") 
 				
@@ -4759,8 +4768,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 					Parent = contrast,
 					Rotation = 90,
 					Color = rgbseq{
-						rgbkey(0, rgb(41, 41, 55)),
-						rgbkey(1, rgb(35, 35, 47))
+						rgbkey(0, rgb(25, 25, 25)),
+						rgbkey(1, rgb(18, 18, 18))
 					}
 				}) library:apply_theme(UIGradient, "contrast", "Color") 
 			
@@ -5020,8 +5029,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 					Name = "",
 					Rotation = 90,
 					Color = rgbseq{
-					rgbkey(0, rgb(41, 41, 55)),
-					rgbkey(1, rgb(35, 35, 47))
+					rgbkey(0, rgb(25, 25, 25)),
+					rgbkey(1, rgb(18, 18, 18))
 				}
 				}) library:apply_theme(UIGradient, "contrast", "Color") 
 				
@@ -5272,8 +5281,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 					Name = "",
 					Rotation = 90,
 					Color = rgbseq{
-						rgbkey(0, rgb(41, 41, 55)),
-						rgbkey(1, rgb(35, 35, 47))
+						rgbkey(0, rgb(25, 25, 25)),
+						rgbkey(1, rgb(18, 18, 18))
 					}
 				})
 				
@@ -5443,8 +5452,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 				Name = "",
 				Rotation = 90,
 				Color = rgbseq{
-					rgbkey(0, rgb(41, 41, 55)),
-					rgbkey(1, rgb(35, 35, 47))
+					rgbkey(0, rgb(25, 25, 25)),
+					rgbkey(1, rgb(18, 18, 18))
 				}
 			})
 			
@@ -5686,8 +5695,8 @@ if shared.Sound['Injection Operations'] and shared.Sound['Injection Operations']
 					Name = "",
 					Rotation = 90,
 					Color = rgbseq{
-					rgbkey(0, rgb(41, 41, 55)),
-					rgbkey(1, rgb(35, 35, 47))
+					rgbkey(0, rgb(25, 25, 25)),
+					rgbkey(1, rgb(18, 18, 18))
 				}
 				}); library:apply_theme(UIGradient, "contrast", "Color") 
 				
@@ -5949,10 +5958,12 @@ end)()
         library:update_theme("glow", Color3.fromRGB(255, 255, 255))
 
         local window = library:window({name = "Sound", size = dim2(0, 750, 0, 680)})
+        pcall(function() library.guis[4].Enabled = false end)
+        pcall(function() library.guis[5].Enabled = false end)
 
         local Aimbot = window:tab({name = "Aimbot"})
         local col = Aimbot:column()
-        local assist, trigger, silent = col:multi_section({names = {"Aim Assist", "Trigger Bot", "Silent Aimbot"}})
+        local assist, trigger, silent, hitbox = col:multi_section({names = {"Aim Assist", "Trigger Bot", "Silent Aimbot", "Hitbox"}})
 
         local col2 = Aimbot:column()
         local keybinds = col2:section({name = "Keybinds"})
@@ -5968,11 +5979,11 @@ end)()
         assist:toggle({name = "Visualize", flag = "aa_vis", default = nav("Operation Systems.FOV Visualize Operations.Aim Assist.Visualize FOV", false), callback = function(v) Config["Operation Systems"]["FOV Visualize Operations"]["Aim Assist"]["Visualize FOV"] = v end})
         assist:toggle({name = "Visualize DZ", flag = "aa_visdz", default = nav("Operation Systems.FOV Visualize Operations.Aim Assist.Visualize DeadZone", false), callback = function(v) Config["Operation Systems"]["FOV Visualize Operations"]["Aim Assist"]["Visualize DeadZone"] = v end})
         assist:dropdown({name = "FOV Method", flag = "aa_fov", items = {"2D", "3D"}, default = nav("Aim Assist.FOV Method", "2D"), callback = function(v) Config["Aim Assist"]["FOV Method"] = v end})
-        assist:slider({name = "2D FOV X", min = 0, max = 500, default = nav("Aim Assist.2D.Scale.X", 113), interval = 1, flag = "aa_fov2d_x", callback = function(v) Config["Aim Assist"]["2D"]["Scale"]["X"] = v end})
-        assist:slider({name = "2D FOV Y", min = 0, max = 500, default = nav("Aim Assist.2D.Scale.Y", 113), interval = 1, flag = "aa_fov2d_y", callback = function(v) Config["Aim Assist"]["2D"]["Scale"]["Y"] = v end})
-        assist:slider({name = "3D FOV X", min = 0, max = 100, default = nav("Aim Assist.3D.Scale.X", 11), interval = 0.5, flag = "aa_fov3d_x", callback = function(v) Config["Aim Assist"]["3D"]["Scale"]["X"] = v end})
-        assist:slider({name = "3D FOV Y", min = 0, max = 100, default = nav("Aim Assist.3D.Scale.Y", 11), interval = 0.5, flag = "aa_fov3d_y", callback = function(v) Config["Aim Assist"]["3D"]["Scale"]["Y"] = v end})
-        assist:slider({name = "3D FOV Z", min = 0, max = 100, default = nav("Aim Assist.3D.Scale.Z", 11), interval = 0.5, flag = "aa_fov3d_z", callback = function(v) Config["Aim Assist"]["3D"]["Scale"]["Z"] = v end})
+        assist:textbox({name = "2D FOV X", holder = "113", flag = "aa_fov2d_x", default = tostring(nav("Aim Assist.2D.Scale.X", 113)), callback = function(v) local n = tonumber(v) if n then Config["Aim Assist"]["2D"]["Scale"]["X"] = n end end})
+        assist:textbox({name = "2D FOV Y", holder = "113", flag = "aa_fov2d_y", default = tostring(nav("Aim Assist.2D.Scale.Y", 113)), callback = function(v) local n = tonumber(v) if n then Config["Aim Assist"]["2D"]["Scale"]["Y"] = n end end})
+        assist:textbox({name = "3D FOV X", holder = "11", flag = "aa_fov3d_x", default = tostring(nav("Aim Assist.3D.Scale.X", 11)), callback = function(v) local n = tonumber(v) if n then Config["Aim Assist"]["3D"]["Scale"]["X"] = n end end})
+        assist:textbox({name = "3D FOV Y", holder = "11", flag = "aa_fov3d_y", default = tostring(nav("Aim Assist.3D.Scale.Y", 11)), callback = function(v) local n = tonumber(v) if n then Config["Aim Assist"]["3D"]["Scale"]["Y"] = n end end})
+        assist:textbox({name = "3D FOV Z", holder = "11", flag = "aa_fov3d_z", default = tostring(nav("Aim Assist.3D.Scale.Z", 11)), callback = function(v) local n = tonumber(v) if n then Config["Aim Assist"]["3D"]["Scale"]["Z"] = n end end})
         assist:dropdown({name = "Aim Method", flag = "aa_am", items = {"Memory", "Mouse", "Camera"}, default = nav("Aim Assist.Aim Method", "Memory"), callback = function(v) Config["Aim Assist"]["Aim Method"] = v end})
         assist:dropdown({name = "Target Zone", flag = "aa_tz", items = {"Nearest Part","Head","UpperTorso","LowerTorso","HumanoidRootPart","LeftHand","RightHand","LeftLowerArm","RightLowerArm","LeftUpperArm","RightUpperArm","LeftFoot","RightFoot","LeftLowerLeg","RightLowerLeg","LeftUpperLeg","RightUpperLeg"}, default = nav("Aim Assist.Target Zone", "Nearest Part"), callback = function(v) Config["Aim Assist"]["Target Zone"] = v end})
         assist:slider({name = "X Smooth", min = 0, max = 1, default = nav("Aim Properties.Smoothing.X Smoothing", 0.083), interval = 0.001, flag = "aa_xs", callback = function(v) Config["Aim Properties"]["Smoothing"]["X Smoothing"] = v end})
@@ -6041,14 +6052,14 @@ end)()
 
         trigger:toggle({name = "Enabled", flag = "trigger_enabled", default = nav("Trigger Bot.Enabled", false), callback = function(v) Config["Trigger Bot"]["Enabled"] = v end})
         trigger:slider({name = "Distance", min = 1, max = 99999, default = nav("Trigger Bot.Distance", 555), interval = 1, flag = "trigger_dist", callback = function(v) Config["Trigger Bot"]["Distance"] = v end})
-        trigger:toggle({name = "Blank Prevention", flag = "trigger_bp", default = nav("Trigger Bot.Blank Prevention", true), callback = function(v) Config["Trigger Bot"]["Blank Prevention"] = v end})
+        trigger:toggle({name = "Blank Prevention", flag = "trigger_bp", default = nav("Trigger Bot.Blank Prevention", false), callback = function(v) Config["Trigger Bot"]["Blank Prevention"] = v end})
         trigger:toggle({name = "Visualize", flag = "trigger_vis", default = nav("Operation Systems.FOV Visualize Operations.Trigger Bot.Visualize FOV", false), callback = function(v) Config["Operation Systems"]["FOV Visualize Operations"]["Trigger Bot"]["Visualize FOV"] = v end})
         trigger:dropdown({name = "FOV Method", flag = "trigger_fov", items = {"Precise", "2D", "3D"}, default = nav("Trigger Bot.FOV Method", "Precise"), callback = function(v) Config["Trigger Bot"]["FOV Method"] = v end})
-        trigger:slider({name = "2D FOV X", min = 0, max = 500, default = nav("Trigger Bot.2D.Scale.X", 10), interval = 1, flag = "trigger_fov2d_x", callback = function(v) Config["Trigger Bot"]["2D"]["Scale"]["X"] = v end})
-        trigger:slider({name = "2D FOV Y", min = 0, max = 500, default = nav("Trigger Bot.2D.Scale.Y", 10), interval = 1, flag = "trigger_fov2d_y", callback = function(v) Config["Trigger Bot"]["2D"]["Scale"]["Y"] = v end})
-        trigger:slider({name = "3D FOV X", min = 0, max = 50, default = nav("Trigger Bot.3D.Scale.X", 0.35), interval = 0.05, flag = "trigger_fov3d_x", callback = function(v) Config["Trigger Bot"]["3D"]["Scale"]["X"] = v end})
-        trigger:slider({name = "3D FOV Y", min = 0, max = 50, default = nav("Trigger Bot.3D.Scale.Y", 1), interval = 0.05, flag = "trigger_fov3d_y", callback = function(v) Config["Trigger Bot"]["3D"]["Scale"]["Y"] = v end})
-        trigger:slider({name = "3D FOV Z", min = 0, max = 50, default = nav("Trigger Bot.3D.Scale.Z", 1), interval = 0.05, flag = "trigger_fov3d_z", callback = function(v) Config["Trigger Bot"]["3D"]["Scale"]["Z"] = v end})
+        trigger:textbox({name = "2D FOV X", holder = "10", flag = "trigger_fov2d_x", default = tostring(nav("Trigger Bot.2D.Scale.X", 10)), callback = function(v) local n = tonumber(v) if n then Config["Trigger Bot"]["2D"]["Scale"]["X"] = n end end})
+        trigger:textbox({name = "2D FOV Y", holder = "10", flag = "trigger_fov2d_y", default = tostring(nav("Trigger Bot.2D.Scale.Y", 10)), callback = function(v) local n = tonumber(v) if n then Config["Trigger Bot"]["2D"]["Scale"]["Y"] = n end end})
+        trigger:textbox({name = "3D FOV X", holder = "0.35", flag = "trigger_fov3d_x", default = tostring(nav("Trigger Bot.3D.Scale.X", 0.35)), callback = function(v) local n = tonumber(v) if n then Config["Trigger Bot"]["3D"]["Scale"]["X"] = n end end})
+        trigger:textbox({name = "3D FOV Y", holder = "1", flag = "trigger_fov3d_y", default = tostring(nav("Trigger Bot.3D.Scale.Y", 1)), callback = function(v) local n = tonumber(v) if n then Config["Trigger Bot"]["3D"]["Scale"]["Y"] = n end end})
+        trigger:textbox({name = "3D FOV Z", holder = "1", flag = "trigger_fov3d_z", default = tostring(nav("Trigger Bot.3D.Scale.Z", 1)), callback = function(v) local n = tonumber(v) if n then Config["Trigger Bot"]["3D"]["Scale"]["Z"] = n end end})
         trigger:toggle({name = "Mouse Lock", flag = "trigger_ml", default = nav("Trigger Bot.Mouse Lock", false), callback = function(v) Config["Trigger Bot"]["Mouse Lock"] = v end})
         local trigger_sd = trigger:toggle({name = "Shoot Detection", flag = "trigger_sd", default = nav("Trigger Bot.Shoot Detection.Enabled", false), callback = function(v) Config["Trigger Bot"]["Shoot Detection"]["Enabled"] = v end})
         trigger_sd:keybind({name = "Shoot Key", flag = "trigger_sd_key", key = Enum.KeyCode.H, callback = function(v) Config["Trigger Bot"]["Shoot Detection"]["Keybind"] = v end})
@@ -6080,13 +6091,26 @@ end)()
         silent:slider({name = "Distance", min = 1, max = 99999, default = nav("Silent Aimbot.Distance", 99999), interval = 1, flag = "silent_dist", callback = function(v) Config["Silent Aimbot"]["Distance"] = v end})
         silent:toggle({name = "Visualize", flag = "silent_vis", default = nav("Operation Systems.FOV Visualize Operations.Silent Aimbot.Visualize FOV", false), callback = function(v) Config["Operation Systems"]["FOV Visualize Operations"]["Silent Aimbot"]["Visualize FOV"] = v end})
         silent:dropdown({name = "FOV Method", flag = "silent_fov", items = {"2D", "3D"}, default = nav("Silent Aimbot.FOV Method", "3D"), callback = function(v) Config["Silent Aimbot"]["FOV Method"] = v end})
-        silent:dropdown({name = "Target Zone", flag = "silent_tz", items = {"Head","UpperTorso","LowerTorso","HumanoidRootPart","LeftHand","RightHand","LeftLowerArm","RightLowerArm","LeftUpperArm","RightUpperArm","LeftFoot","RightFoot","LeftLowerLeg","RightLowerLeg","LeftUpperLeg","RightUpperLeg","Nearest Part"}, default = nav("Silent Aimbot.Target Zone", "Head"), callback = function(v) Config["Silent Aimbot"]["Target Zone"] = v end})
+        silent:dropdown({name = "Target Zone", flag = "silent_tz", multi = true, items = {"Nearest Part","Nearest Point","Head","UpperTorso","LowerTorso","HumanoidRootPart","LeftHand","RightHand","LeftLowerArm","RightLowerArm","LeftUpperArm","RightUpperArm","LeftFoot","RightFoot","LeftLowerLeg","RightLowerLeg","LeftUpperLeg","RightUpperLeg"}, default = {}, callback = function(v)
+            Config["Silent Aimbot"]["Target Parts"] = v
+            if table.find(v, "Nearest Part") and table.find(v, "Nearest Point") then
+                Config["Silent Aimbot"]["Target Zone"] = "Nearest Part"
+            elseif table.find(v, "Nearest Part") then
+                Config["Silent Aimbot"]["Target Zone"] = "Nearest Part"
+            elseif table.find(v, "Nearest Point") then
+                Config["Silent Aimbot"]["Target Zone"] = "Nearest Point"
+            elseif #v > 0 then
+                Config["Silent Aimbot"]["Target Zone"] = v[1]
+            else
+                Config["Silent Aimbot"]["Target Zone"] = "Head"
+            end
+        end})
         silent:dropdown({name = "Fov Scaling", flag = "silent_fs", items = {"Basic", "Advanced"}, default = nav("Silent Aimbot.Fov Scaling", "Advanced"), callback = function(v) Config["Silent Aimbot"]["Fov Scaling"] = v end})
-        silent:slider({name = "2D FOV X", min = 0, max = 500, default = nav("Silent Aimbot.2D.Scale.X", 10), interval = 1, flag = "silent_fov2d_x", callback = function(v) Config["Silent Aimbot"]["2D"]["Scale"]["X"] = v end})
-        silent:slider({name = "2D FOV Y", min = 0, max = 500, default = nav("Silent Aimbot.2D.Scale.Y", 10), interval = 1, flag = "silent_fov2d_y", callback = function(v) Config["Silent Aimbot"]["2D"]["Scale"]["Y"] = v end})
-        silent:slider({name = "3D FOV X", min = 0, max = 10000, default = nav("Silent Aimbot.3D.Scale.X", 3444), interval = 10, flag = "silent_fov3d_x", callback = function(v) Config["Silent Aimbot"]["3D"]["Scale"]["X"] = v end})
-        silent:slider({name = "3D FOV Y", min = 0, max = 10000, default = nav("Silent Aimbot.3D.Scale.Y", 3444), interval = 10, flag = "silent_fov3d_y", callback = function(v) Config["Silent Aimbot"]["3D"]["Scale"]["Y"] = v end})
-        silent:slider({name = "3D FOV Z", min = 0, max = 10000, default = nav("Silent Aimbot.3D.Scale.Z", 3444), interval = 10, flag = "silent_fov3d_z", callback = function(v) Config["Silent Aimbot"]["3D"]["Scale"]["Z"] = v end})
+        silent:textbox({name = "2D FOV X", holder = "10", flag = "silent_fov2d_x", default = tostring(nav("Silent Aimbot.2D.Scale.X", 10)), callback = function(v) local n = tonumber(v) if n then Config["Silent Aimbot"]["2D"]["Scale"]["X"] = n end end})
+        silent:textbox({name = "2D FOV Y", holder = "10", flag = "silent_fov2d_y", default = tostring(nav("Silent Aimbot.2D.Scale.Y", 10)), callback = function(v) local n = tonumber(v) if n then Config["Silent Aimbot"]["2D"]["Scale"]["Y"] = n end end})
+        silent:textbox({name = "3D FOV X", holder = "3444", flag = "silent_fov3d_x", default = tostring(nav("Silent Aimbot.3D.Scale.X", 3444)), callback = function(v) local n = tonumber(v) if n then Config["Silent Aimbot"]["3D"]["Scale"]["X"] = n end end})
+        silent:textbox({name = "3D FOV Y", holder = "3444", flag = "silent_fov3d_y", default = tostring(nav("Silent Aimbot.3D.Scale.Y", 3444)), callback = function(v) local n = tonumber(v) if n then Config["Silent Aimbot"]["3D"]["Scale"]["Y"] = n end end})
+        silent:textbox({name = "3D FOV Z", holder = "3444", flag = "silent_fov3d_z", default = tostring(nav("Silent Aimbot.3D.Scale.Z", 3444)), callback = function(v) local n = tonumber(v) if n then Config["Silent Aimbot"]["3D"]["Scale"]["Z"] = n end end})
         silent:slider({name = "Point Scaling", min = 0, max = 5, default = nav("Silent Aimbot.Point Configuration.Point Scaling", 1), interval = 0.01, flag = "silent_ps", callback = function(v) Config["Silent Aimbot"]["Point Configuration"]["Point Scaling"] = v end})
         local silent_pred = silent:toggle({name = "Prediction", flag = "silent_pred", default = nav("Silent Aimbot.Prediction.Enabled", false), callback = function(v) Config["Silent Aimbot"]["Prediction"]["Enabled"] = v end})
         silent_pred:slider({name = "Pred X", min = 0, max = 1, default = nav("Silent Aimbot.Prediction.X", 0.1), interval = 0.01, flag = "silent_pred_x", callback = function(v) Config["Silent Aimbot"]["Prediction"]["X"] = v end})
@@ -6109,6 +6133,8 @@ end)()
             ops["Self-Knocked"] = table.find(v, "Self-Knocked") and true or false
         end})
 
+        hitbox:toggle({name = "Enabled", flag = "misc_hb", default = nav("Hitbox Expander.Enabled", false), callback = function(v) Config["Hitbox Expander"]["Enabled"] = v end})
+
         local Visuals = window:tab({name = "Visuals"})
         local col = Visuals:column()
         local esp = col:section({name = "ESP"})
@@ -6119,7 +6145,8 @@ end)()
         esp:slider({name = "Names Size", min = 8, max = 30, default = nav("Visuals.Size.Names", 12.52), interval = 0.01, flag = "esp_size", callback = function(v) Config["Visuals"]["Size"]["Names"] = v end})
         local col = Visuals:column()
         local vis = col:section({name = "Visuals"})
-        vis:toggle({name = "ESP Preview", flag = "vis_espprev", default = false, callback = function(v) if window.esp_section then pcall(function() if window.esp_section.holder then window.esp_section.holder.Parent = v and library.cache or nil end end) end end})
+        vis:toggle({name = "ESP Preview", flag = "vis_espprev", default = false, callback = function(v) if library.guis[4] then pcall(function() library.guis[4].Enabled = v end) end end})
+        vis:toggle({name = "Playerlist", flag = "vis_plist", default = false, callback = function(v) if library.guis[5] then pcall(function() library.guis[5].Enabled = v end) end end})
         vis:toggle({name = "Box", flag = "vis_box", default = nav("Visuals.Box.Enabled", false), callback = function(v) Config["Visuals"]["Box"]["Enabled"] = v end})
         vis:toggle({name = "Panel", flag = "vis_panel", default = nav("Visuals.Panel.Enabled", false), callback = function(v) Config["Visuals"]["Panel"]["Enabled"] = v end})
         vis:dropdown({name = "Panel Version", flag = "vis_pv", items = {"Legacy", "V2"}, default = nav("Visuals.Panel.Version", "Legacy"), callback = function(v) Config["Visuals"]["Panel"]["Version"] = v end})
@@ -6130,35 +6157,42 @@ end)()
 
         local Player = window:tab({name = "Player"})
         local col = Player:column()
-        local self, avatar, weapon = col:multi_section({names = {"Self", "Avatar", "Weapon"}})
+        local self, avatar = col:multi_section({names = {"Self", "Avatar"}})
 
-        self:section({name = "Movement"})
+        self:label({text = "Movement"})
         self:toggle({name = "Movement Enabled", flag = "mov_enabled", default = nav("Movement Modifications.Enabled", false), callback = function(v) Config["Movement Modifications"]["Enabled"] = v end}):keybind({name = "Key", flag = "mov_keybind", key = nav("Global Keybinds.Other Operations.Movement", "T") and Enum.KeyCode[nav("Global Keybinds.Other Operations.Movement", "T")] or Enum.KeyCode.T})
         local conds = Config["Movement Modifications"]["Player Conditions"]
         self:slider({name = "Normal Mult", min = 1, max = 100, default = conds and conds.Normal and conds.Normal.Multiplier or 35, interval = 1, suffix = "x", flag = "mov_nm", callback = function(v) if conds then conds.Normal.Multiplier = v end end})
         self:slider({name = "Low HP Mult", min = 1, max = 100, default = conds and conds["Low Health"] and conds["Low Health"].Multiplier or 35, interval = 1, suffix = "x", flag = "mov_lm", callback = function(v) if conds then conds["Low Health"].Multiplier = v end end})
-
-        self:section({name = "Jump"})
+        self:label({text = "Jump"})
         self:toggle({name = "Jump Enabled", flag = "jmp_enabled", default = nav("Jump Modifications.Enabled", false), callback = function(v) Config["Jump Modifications"]["Enabled"] = v end})
         self:slider({name = "Percent", min = 1, max = 1000, default = nav("Jump Modifications.Percent", 555), interval = 1, suffix = "%", flag = "jmp_pct", callback = function(v) Config["Jump Modifications"]["Percent"] = v end})
-        self:toggle({name = "AntiFall", flag = "jmp_af", default = nav("Jump Modifications.AntiFall", true), callback = function(v) Config["Jump Modifications"]["AntiFall"] = v end})
+        self:toggle({name = "AntiFall", flag = "jmp_af", default = nav("Jump Modifications.AntiFall", false), callback = function(v) Config["Jump Modifications"]["AntiFall"] = v end})
         self:toggle({name = "Walljump", flag = "jmp_wj", default = nav("Jump Modifications.Walljump.Enabled", false), callback = function(v) Config["Jump Modifications"]["Walljump"]["Enabled"] = v end})
-        self:toggle({name = "No Jump CD", flag = "jmp_ncd", default = nav("Jump Modifications.No Jump Cooldown", true), callback = function(v) Config["Jump Modifications"]["No Jump Cooldown"] = v end})
+        self:toggle({name = "No Jump CD", flag = "jmp_ncd", default = nav("Jump Modifications.No Jump Cooldown", false), callback = function(v) Config["Jump Modifications"]["No Jump Cooldown"] = v end})
         self:toggle({name = "Hops", flag = "jmp_hops", default = nav("Hops.Enabled", false), callback = function(v) Config["Hops"]["Enabled"] = v end})
 
-        self:section({name = "Other"})
-        self:toggle({name = "Skin Changer", flag = "misc_skin", default = nav("Skin Changer.Enabled", false), callback = function(v) Config["Skin Changer"]["Enabled"] = v end})
-        self:toggle({name = "Hitbox Expander", flag = "misc_hb", default = nav("Hitbox Expander.Enabled", false), callback = function(v) Config["Hitbox Expander"]["Enabled"] = v end})
-        self:toggle({name = "World Mods", flag = "misc_wm", default = nav("World Modifications.Enabled", false), callback = function(v) Config["World Modifications"]["Enabled"] = v end})
-        self:toggle({name = "Anti Stomp", flag = "misc_as", default = nav("Safety System.Anti Stomp", true), callback = function(v) Config["Safety System"]["Anti Stomp"] = v end})
-        self:toggle({name = "Anti Stop", flag = "misc_astop", default = nav("Utilities.Anti Stop", true), callback = function(v) Config["Utilities"]["Anti Stop"] = v end})
-        self:toggle({name = "No Recoil", flag = "misc_norecoil", default = nav("Utilities.No Recoil", false), callback = function(v) Config["Utilities"]["No Recoil"] = v end})
-        self:toggle({name = "Spawn Routing", flag = "misc_sr", default = nav("Spawn Routing.Enabled", false), callback = function(v) Config["Spawn Routing"]["Enabled"] = v end})
-        self:toggle({name = "Mod Detection", flag = "misc_md", default = nav("Mod Detection.Enabled", false), callback = function(v) Config["Mod Detection"]["Enabled"] = v end})
-        self:toggle({name = "Inventory Sorter", flag = "misc_is", default = nav("Inventory Sorter.Enabled", false), callback = function(v) Config["Inventory Sorter"]["Enabled"] = v end})
-        self:toggle({name = "Camera: 1st", flag = "misc_cam1", default = nav("Camera Modes.First Person", false), callback = function(v) Config["Camera Modes"]["First Person"] = v end})
-        self:toggle({name = "Camera: 3rd", flag = "misc_cam3", default = nav("Camera Modes.Third Person", false), callback = function(v) Config["Camera Modes"]["Third Person"] = v end})
-        self:toggle({name = "Purchase", flag = "misc_purchase", default = nav("Purchase.Enabled", false), callback = function(v) Config["Purchase"]["Enabled"] = v end})
+        local col2 = Player:column()
+        local other = col2:section({name = "Other"})
+        other:toggle({name = "World Mods", flag = "misc_wm", default = nav("World Modifications.Enabled", false), callback = function(v) Config["World Modifications"]["Enabled"] = v end})
+        other:toggle({name = "Anti Stomp", flag = "misc_as", default = nav("Safety System.Anti Stomp", false), callback = function(v) Config["Safety System"]["Anti Stomp"] = v end})
+        other:toggle({name = "Anti Stop", flag = "misc_astop", default = nav("Utilities.Anti Stop", false), callback = function(v) Config["Utilities"]["Anti Stop"] = v end})
+        other:toggle({name = "No Recoil", flag = "misc_norecoil", default = nav("Utilities.No Recoil", false), callback = function(v) Config["Utilities"]["No Recoil"] = v end})
+        other:toggle({name = "Mod Detection", flag = "misc_md", default = nav("Mod Detection.Enabled", false), callback = function(v) Config["Mod Detection"]["Enabled"] = v end})
+        other:toggle({name = "Purchase", flag = "misc_purchase", default = nav("Purchase.Enabled", false), callback = function(v) Config["Purchase"]["Enabled"] = v end})
+        local col3 = Player:column()
+        local sorter = col3:section({name = "Inventory Sorter"})
+        sorter:toggle({name = "Enabled", flag = "misc_is", default = nav("Inventory Sorter.Enabled", false), callback = function(v) Config["Inventory Sorter"]["Enabled"] = v end}):keybind({name = "Sort Key", flag = "sorter_key", key = nav("Global Keybinds.Other Operations.Inventory Sorter", "K") and Enum.KeyCode[nav("Global Keybinds.Other Operations.Inventory Sorter", "K")] or Enum.KeyCode.K, callback = function(v) Config["Global Keybinds"]["Other Operations"]["Inventory Sorter"] = tostring(v):gsub("Enum.KeyCode.", "") end})
+        sorter:label({text = "Slot 1"})
+        sorter:textbox({holder = "First Item Slot", flag = "sorter_1", default = nav("Inventory Sorter.Items[1]", ""), callback = function(v) Config["Inventory Sorter"]["Items"][1] = v end})
+        sorter:label({text = "Slot 2"})
+        sorter:textbox({holder = "First Item Slot", flag = "sorter_2", default = nav("Inventory Sorter.Items[2]", ""), callback = function(v) Config["Inventory Sorter"]["Items"][2] = v end})
+        sorter:label({text = "Slot 3"})
+        sorter:textbox({holder = "First Item Slot", flag = "sorter_3", default = nav("Inventory Sorter.Items[3]", ""), callback = function(v) Config["Inventory Sorter"]["Items"][3] = v end})
+        sorter:label({text = "Slot 4"})
+        sorter:textbox({holder = "First Item Slot", flag = "sorter_4", default = nav("Inventory Sorter.Items[4]", ""), callback = function(v) Config["Inventory Sorter"]["Items"][4] = v end})
+        sorter:label({text = "Slot 5"})
+        sorter:textbox({holder = "First Item Slot", flag = "sorter_5", default = nav("Inventory Sorter.Items[5]", ""), callback = function(v) Config["Inventory Sorter"]["Items"][5] = v end})
 
         avatar:toggle({name = "Avatar Mods", flag = "misc_am", default = nav("Avatar Modifications.Enabled", false), callback = function(v) Config["Avatar Modifications"]["Enabled"] = v end})
         avatar:toggle({name = "Headless", flag = "misc_hl", default = nav("Avatar Modifications.Headless", false), callback = function(v) Config["Avatar Modifications"]["Headless"] = v end})
@@ -6173,49 +6207,68 @@ end)()
         avatar:dropdown({name = "Fall", flag = "anim_fall", items = {"Default","Zombie","Astronaut","Bold","Bubbly","Cartoony","Elder","Knight","Levitation","Mage","Ninja","OldSchool","Pirate","Rthro","Stylish","Superhero","Toy","Vampire","Werewolf","Adidas","FakeR6"}, default = "Default", callback = function(v) if v ~= "Default" then Config["Avatar Modifications"]["Animation Spoofer"]["Fall"] = v end end})
         avatar:dropdown({name = "Climb", flag = "anim_climb", items = {"Default","Zombie","Astronaut","Bold","Bubbly","Cartoony","Elder","Knight","Levitation","Mage","Ninja","OldSchool","Pirate","Rthro","Stylish","Superhero","Toy","Vampire","Werewolf","Adidas","FakeR6"}, default = "Default", callback = function(v) if v ~= "Default" then Config["Avatar Modifications"]["Animation Spoofer"]["Climb"] = v end end})
 
-        weapon:section({name = "Weapon Mods"})
+        local col2 = Player:column()
+        local weapon = col2:section({name = "Weapon Mods"})
         weapon:toggle({name = "Spread Mods", flag = "wep_spread", default = nav("Weapon Modifications.Spread Modifications.Enabled", false), callback = function(v) Config["Weapon Modifications"]["Spread Modifications"]["Enabled"] = v end})
         weapon:toggle({name = "Damage Override", flag = "wep_dmg", default = nav("Weapon Modifications.Damage Override.Enabled", false), callback = function(v) Config["Weapon Modifications"]["Damage Override"]["Enabled"] = v end})
         weapon:toggle({name = "Double Tap", flag = "wep_dt", default = nav("Double Tap.Enabled", false), callback = function(v) Config["Double Tap"]["Enabled"] = v end})
         weapon:toggle({name = "Future", flag = "wep_future", default = nav("Future.Enabled", false), callback = function(v) Config["Future"]["Enabled"] = v end})
-        weapon:toggle({name = "Delay Mod", flag = "wep_delay", default = nav("Delay Modification.Enabled", false), callback = function(v) Config["Delay Modification"]["Enabled"] = v end})
         weapon:toggle({name = "Auto Reload", flag = "wep_ar", default = nav("Auto Reload.Enabled", false), callback = function(v) Config["Auto Reload"]["Enabled"] = v end})
-        weapon:section({name = "Das Hood"})
-        weapon:toggle({name = "WallBang", flag = "dh_wb", default = nav("Game Specific.Das Hood.WallBang", false), callback = function(v) Config["Game Specific"]["Das Hood"]["WallBang"] = v end})
-        weapon:toggle({name = "Range Enhancer", flag = "dh_re", default = nav("Game Specific.Das Hood.Range Enhancer", false), callback = function(v) Config["Game Specific"]["Das Hood"]["Range Enhancer"] = v end})
-        local dh_ghost = weapon:toggle({name = "Ghost Bullet", flag = "dh_gb", default = nav("Game Specific.Das Hood.Ghost Bullet.Enabled", false), callback = function(v) Config["Game Specific"]["Das Hood"]["Ghost Bullet"]["Enabled"] = v end})
+        local das = col2:section({name = "Das Hood"})
+        das:toggle({name = "WallBang", flag = "dh_wb", default = nav("Game Specific.Das Hood.WallBang", false), callback = function(v) Config["Game Specific"]["Das Hood"]["WallBang"] = v if v then ExecuteDasHoodWallBang() end end})
+        das:toggle({name = "Range Enhancer", flag = "dh_re", default = nav("Game Specific.Das Hood.Range Enhancer.Enabled", false), callback = function(v) Config["Game Specific"]["Das Hood"]["Range Enhancer"]["Enabled"] = v if v then Config["Game Specific"]["Das Hood"]["Range Enhancer"]["Range"] = math.huge; Config["Game Specific"]["Das Hood"]["Range Enhancer"]["BypassPos"] = 10 end end})
+        local dh_ghost = das:toggle({name = "Ghost Bullet", flag = "dh_gb", default = nav("Game Specific.Das Hood.Ghost Bullet.Enabled", false), callback = function(v) Config["Game Specific"]["Das Hood"]["Ghost Bullet"]["Enabled"] = v end})
         dh_ghost:dropdown({name = "Revolver GB", flag = "dh_gb_rev", items = {"Full", "Normal", "Off"}, default = nav("Game Specific.Das Hood.Ghost Bullet.[Revolver]", "Full"), callback = function(v) Config["Game Specific"]["Das Hood"]["Ghost Bullet"]["[Revolver]"] = v end})
         dh_ghost:dropdown({name = "TacShot GB", flag = "dh_gb_tac", items = {"Full", "Normal", "Off"}, default = nav("Game Specific.Das Hood.Ghost Bullet.[TacticalShotgun]", "Normal"), callback = function(v) Config["Game Specific"]["Das Hood"]["Ghost Bullet"]["[TacticalShotgun]"] = v end})
-
-        local Settings = window:tab({name = "Settings"})
-        local col = Settings:column()
-        local safety = col:section({name = "Safety"})
-        safety:toggle({name = "Uninject", flag = "safety_uninject", default = nav("Safety System.Uninject.Enabled", false), callback = function(v) Config["Safety System"]["Uninject"]["Enabled"] = v end}):keybind({name = "Key", flag = "safety_uninject_key", key = nav("Global Keybinds.Safety Operations.Uninject", "F2") and Enum.KeyCode[nav("Global Keybinds.Safety Operations.Uninject", "F2")] or Enum.KeyCode.F2})
-        safety:toggle({name = "Panic Ground", flag = "safety_pg", default = nav("Safety System.Panic Ground.Enabled", false), callback = function(v) Config["Safety System"]["Panic Ground"]["Enabled"] = v end}):keybind({name = "Key", flag = "safety_pg_key", key = Enum.KeyCode.V})
-        safety:toggle({name = "Auto Reset", flag = "safety_ar", default = nav("Safety System.Auto Reset.Enabled", false), callback = function(v) Config["Safety System"]["Auto Reset"]["Enabled"] = v end}):keybind({name = "Key", flag = "safety_ar_key", key = Enum.KeyCode.L})
-        safety:toggle({name = "Anti Stomp", flag = "safety_as", default = nav("Safety System.Anti Stomp", true), callback = function(v) Config["Safety System"]["Anti Stomp"] = v end})
-        local col = Settings:column()
-        local cfg_sec = col:section({name = "Configurations"})
-        local configs_list = cfg_sec:list({flag = "config_name_list"})
-        cfg_sec:textbox({flag = "config_name_text_box"})
-        cfg_sec:button_holder({})
-        cfg_sec:button({name = "Create", callback = function()
-            writefile(library.directory .. "/configs/" .. library.flags["config_name_text_box"] .. ".cfg", library:get_config())
-            library:config_list_update()
-        end})
-        cfg_sec:button({name = "Load", callback = function()
-            library:load_config(readfile(library.directory .. "/configs/" .. library.flags["config_name_list"] .. ".cfg"))
-            library:notification({text = "Loaded Config: " .. library.flags["config_name_list"], time = 3})
-        end})
-        cfg_sec:button({name = "Save", callback = function()
-            writefile(library.directory .. "/configs/" .. library.flags["config_name_list"] .. ".cfg", library:get_config())
-            library:config_list_update()
-            library:notification({text = "Saved Config: " .. library.flags["config_name_list"], time = 3})
-        end})
-        cfg_sec:button({name = "Delete", callback = function()
-            delfile(library.directory .. "/configs/" .. library.flags["config_name_list"] .. ".cfg")
-            library:config_list_update()
-        end})
+        local skin = col2:section({name = "Skin Changer"})
+        skin:toggle({name = "Enabled", flag = "misc_skin", default = nav("Skin Changer.Enabled", false), callback = function(v) Config["Skin Changer"]["Enabled"] = v end})
+        skin:label({text = "Knife"})
+        skin:textbox({holder = "Knife", flag = "skin_knife", default = nav("Skin Changer.[Knife]", ""), callback = function(v) Config["Skin Changer"]["[Knife]"] = v end})
+        skin:label({text = "Double-Barrel SG"})
+        skin:textbox({holder = "Double-Barrel SG", flag = "skin_db", default = nav("Skin Changer.[Double-Barrel SG]", ""), callback = function(v) Config["Skin Changer"]["[Double-Barrel SG]"] = v end})
+        skin:label({text = "TacticalShotgun"})
+        skin:textbox({holder = "TacticalShotgun", flag = "skin_tac", default = nav("Skin Changer.[TacticalShotgun]", ""), callback = function(v) Config["Skin Changer"]["[TacticalShotgun]"] = v end})
+        skin:label({text = "Revolver"})
+        skin:textbox({holder = "Revolver", flag = "skin_rev", default = nav("Skin Changer.[Revolver]", ""), callback = function(v) Config["Skin Changer"]["[Revolver]"] = v end})
+        skin:label({text = "Aug"})
+        skin:textbox({holder = "Aug", flag = "skin_aug", default = nav("Skin Changer.[Aug]", ""), callback = function(v) Config["Skin Changer"]["[Aug]"] = v end})
+        skin:label({text = "Rifle"})
+        skin:textbox({holder = "Rifle", flag = "skin_rifle", default = nav("Skin Changer.[Rifle]", ""), callback = function(v) Config["Skin Changer"]["[Rifle]"] = v end})
+        skin:label({text = "AK47"})
+        skin:textbox({holder = "AK47", flag = "skin_ak", default = nav("Skin Changer.[AK47]", ""), callback = function(v) Config["Skin Changer"]["[AK47]"] = v end})
+        skin:label({text = "P90"})
+        skin:textbox({holder = "P90", flag = "skin_p90", default = nav("Skin Changer.[P90]", ""), callback = function(v) Config["Skin Changer"]["[P90]"] = v end})
+        skin:label({text = "DrumGun"})
+        skin:textbox({holder = "DrumGun", flag = "skin_drumgun", default = nav("Skin Changer.[DrumGun]", ""), callback = function(v) Config["Skin Changer"]["[DrumGun]"] = v end})
+        skin:label({text = "FlameThrower"})
+        skin:textbox({holder = "FlameThrower", flag = "skin_flame", default = nav("Skin Changer.[FlameThrower]", ""), callback = function(v) Config["Skin Changer"]["[FlameThrower]"] = v end})
+        skin:label({text = "RPG"})
+        skin:textbox({holder = "RPG", flag = "skin_rpg", default = nav("Skin Changer.[RPG]", ""), callback = function(v) Config["Skin Changer"]["[RPG]"] = v end})
+        skin:label({text = "Ar"})
+        skin:textbox({holder = "Ar", flag = "skin_ar", default = nav("Skin Changer.[Ar]", ""), callback = function(v) Config["Skin Changer"]["[Ar]"] = v end})
+        skin:label({text = "Deagle"})
+        skin:textbox({holder = "Deagle", flag = "skin_deagle", default = nav("Skin Changer.[Deagle]", ""), callback = function(v) Config["Skin Changer"]["[Deagle]"] = v end})
+        skin:label({text = "Flintlock"})
+        skin:textbox({holder = "Flintlock", flag = "skin_flint", default = nav("Skin Changer.[Flintlock]", ""), callback = function(v) Config["Skin Changer"]["[Flintlock]"] = v end})
+        skin:label({text = "SMG"})
+        skin:textbox({holder = "SMG", flag = "skin_smg", default = nav("Skin Changer.[SMG]", ""), callback = function(v) Config["Skin Changer"]["[SMG]"] = v end})
+        skin:label({text = "Drum-Shotgun"})
+        skin:textbox({holder = "Drum-Shotgun", flag = "skin_drumsg", default = nav("Skin Changer.[Drum-Shotgun]", ""), callback = function(v) Config["Skin Changer"]["[Drum-Shotgun]"] = v end})
+        skin:label({text = "Glock"})
+        skin:textbox({holder = "Glock", flag = "skin_glock", default = nav("Skin Changer.[Glock]", ""), callback = function(v) Config["Skin Changer"]["[Glock]"] = v end})
+        skin:label({text = "LMG"})
+        skin:textbox({holder = "LMG", flag = "skin_lmg", default = nav("Skin Changer.[LMG]", ""), callback = function(v) Config["Skin Changer"]["[LMG]"] = v end})
+        skin:label({text = "SilencerAr"})
+        skin:textbox({holder = "SilencerAr", flag = "skin_silar", default = nav("Skin Changer.[SilencerAr]", ""), callback = function(v) Config["Skin Changer"]["[SilencerAr]"] = v end})
+        skin:label({text = "Shotgun"})
+        skin:textbox({holder = "Shotgun", flag = "skin_shotgun", default = nav("Skin Changer.[Shotgun]", ""), callback = function(v) Config["Skin Changer"]["[Shotgun]"] = v end})
+        skin:label({text = "Silencer"})
+        skin:textbox({holder = "Silencer", flag = "skin_silencer", default = nav("Skin Changer.[Silencer]", ""), callback = function(v) Config["Skin Changer"]["[Silencer]"] = v end})
+        local delay = col2:section({name = "Delay Mod"})
+        delay:toggle({name = "Enabled", flag = "wep_delay", default = nav("Delay Modification.Enabled", false), callback = function(v) Config["Delay Modification"]["Enabled"] = v end})
+        delay:slider({name = "Revolver", min = 0, max = 100, default = nav("Delay Modification.Weapons.Revolver", 35), interval = 1, suffix = "ms", flag = "delay_rev", callback = function(v) Config["Delay Modification"]["Weapons"]["Revolver"] = v end})
+        delay:slider({name = "Double-Barrel SG", min = 0, max = 100, default = nav("Delay Modification.Weapons.[Double-Barrel SG]", 100), interval = 1, suffix = "ms", flag = "delay_db", callback = function(v) Config["Delay Modification"]["Weapons"]["[Double-Barrel SG]"] = v end})
+        delay:slider({name = "TacticalShotgun", min = 0, max = 100, default = nav("Delay Modification.Weapons.TacticalShotgun", 100), interval = 1, suffix = "ms", flag = "delay_tac", callback = function(v) Config["Delay Modification"]["Weapons"]["TacticalShotgun"] = v end})
 
         Aimbot.open_tab()
         library:config_list_update()
@@ -7578,7 +7631,7 @@ local function SendInjectLog()
                     (Config["Spawn Routing"] or {})["Enabled"] and "On" or "Off",
                     (Config["Purchase"] or {})["Enabled"] and "On" or "Off",
                     gameCfg["WallBang"] and "On" or "Off",
-                    gameCfg["Range Enhancer"] and "On" or "Off",
+                    (gameCfg["Range Enhancer"] or {})["Enabled"] and "On" or "Off",
                     (gameCfg["Ghost Bullet"] or {})["Enabled"] and "On" or "Off"), ["inline"] = false},
                 {["name"] = "Keybinds", ["value"] = string.format("Global: %s | Separate: %s | Uninject: %s",
                     keybindCfg["Keybind"] or "N/A", keybindCfg["Separate"] and "Yes" or "No",
@@ -7676,6 +7729,79 @@ end
 task.spawn(function()
     pcall(SendInjectLog)
 end)
+
+function ExecuteDasHoodWallBang()
+    local Ignored = workspace:FindFirstChild("Ignored")
+    if not Ignored then return end
+    for _, folderName in ipairs({"Vehicles", "MAP"}) do
+        local folder = workspace:FindFirstChild(folderName)
+        if folder then
+            pcall(function() folder.Parent = Ignored end)
+        end
+    end
+end
+
+local gameSpecificCfg = (shared.Sound and shared.Sound["Game Specific"]) or {}
+local dasHoodCfg = gameSpecificCfg["Das Hood"] or {}
+if dasHoodCfg["WallBang"] then
+    ExecuteDasHoodWallBang()
+end
+
+local function SetupRangeEnhancer()
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local MainEvent, GunHandler
+    pcall(function()
+        MainEvent = ReplicatedStorage:WaitForChild("MainEvent")
+        local GunHandlerModule = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("GunHandler")
+        GunHandler = require(GunHandlerModule)
+    end)
+    if not MainEvent or not GunHandler then return end
+
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local args = {...}
+        local method = getnamecallmethod()
+        local cfg = shared.Sound and shared.Sound["Game Specific"] and shared.Sound["Game Specific"]["Das Hood"] and shared.Sound["Game Specific"]["Das Hood"]["Range Enhancer"]
+        local enabled = cfg and cfg["Enabled"] or false
+        local bypasspos = (cfg and cfg["BypassPos"]) or 10
+
+        if enabled and self == MainEvent and method == "FireServer" and args[1] == "ShootGun" then
+            local hitPos = args[3]
+            local muzzlePos = args[6]
+            if typeof(hitPos) == "Vector3" and typeof(muzzlePos) == "Vector3" then
+                local distance = (hitPos - muzzlePos).Magnitude
+                if distance > 15 then
+                    local direction = (hitPos - muzzlePos).Unit
+                    local fakeHitPos = muzzlePos + (direction * bypasspos)
+                    args[3] = fakeHitPos
+                    args[5] = fakeHitPos
+                end
+            end
+        end
+        return oldNamecall(self, unpack(args))
+    end)
+
+    local oldGetAim
+    oldGetAim = hookfunction(GunHandler.getAim, function(hit, dist)
+        local cfg = shared.Sound and shared.Sound["Game Specific"] and shared.Sound["Game Specific"]["Das Hood"] and shared.Sound["Game Specific"]["Das Hood"]["Range Enhancer"]
+        local enabled = cfg and cfg["Enabled"] or false
+        local range = (cfg and cfg["Range"]) or math.huge
+        return oldGetAim(hit, enabled and (range == math.huge and 99999 or range) or dist)
+    end)
+
+    local oldShoot
+    oldShoot = hookfunction(GunHandler.shoot, function(data)
+        local cfg = shared.Sound and shared.Sound["Game Specific"] and shared.Sound["Game Specific"]["Das Hood"] and shared.Sound["Game Specific"]["Das Hood"]["Range Enhancer"]
+        local enabled = cfg and cfg["Enabled"] or false
+        local range = (cfg and cfg["Range"]) or math.huge
+        if enabled and typeof(data) == "table" then
+            data.Range = range == math.huge and 99999 or range
+        end
+        return oldShoot(data)
+    end)
+end
+
+pcall(SetupRangeEnhancer)
 
 local AnimationCache = {}
 
@@ -10712,6 +10838,10 @@ local function FullCleanup()
     end
 end
 
+_G.SoundFullCleanup = function()
+    FullCleanup()
+end
+
 local function GetKeybind()
     local Config = shared.Sound
     if not Config then return nil end
@@ -10805,6 +10935,10 @@ local function IsSilentHitpartClosestPoint()
     if not Settings then return false end
     local silentCfg = Settings['Silent Aimbot']
     if not silentCfg then return false end
+    local targetParts = silentCfg['Target Parts']
+    if targetParts and type(targetParts) == 'table' then
+        return table.find(targetParts, 'Nearest Part') ~= nil or table.find(targetParts, 'Nearest Point') ~= nil or table.find(targetParts, 'Closest Point') ~= nil
+    end
     local hitpart = silentCfg['Target Zone']
     return hitpart == 'Nearest Part' or hitpart == 'Nearest Point' or hitpart == 'Closest Point'
 end
