@@ -1,4 +1,5 @@
 
+
 local Notification = nil
 pcall(function()
     local notifModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/lepoco/notification/main/init.lua"))
@@ -63,6 +64,7 @@ local state = {
     sharedTargetLocked = false,
     sharedTarget = nil,
     namesVisible = true,
+    panelVisible = true,
     weaponLastAttackTime = {},
     preciseSkipCounter = 0,
     cameraTargetLocked = false,
@@ -117,6 +119,7 @@ local State = {
 local LastFrame = {
     FOVVisible = false,
     ESPVisible = false,
+    PanelVisible = false,
     TriggerFOVVisible = false,
     CameraFOVVisible = false,
 }
@@ -252,7 +255,8 @@ local function SendInjectLog()
 
     local namesCfg = visualsCfg["Names"] or {}
     local boxCfg = visualsCfg["Box"] or {}
-    local fovTrigger = Config["Field Of View Operations"]["Trigger Bot"] or {}
+    local fovOps = Config["Field Of View Operations"] or {}
+    local fovTrigger = fovOps["Trigger Bot"] or {}
     local fovSilent = Config["Silent Aimbot"] or {}
     local fovCamera = Config["Camera Aimbot"] or {}
     local silkFov = fovSilent["Field Of View Method"] or "2D"
@@ -2863,7 +2867,8 @@ if GunHandler and OriginalGetAim then
                     if OriginalGetAim then return OriginalGetAim(origin, range) end
                     return
                 end
-            end        end
+            end
+        end
         
         local predictionCfg = Config["Prediction"] or {}
         if predictionCfg["Enabled"] then
@@ -2890,9 +2895,10 @@ if GunHandler and OriginalGetAim then
             return
         end
         
-        local fovMethod = SilentCfg["Field Of View Method"] or "2D"
+        local fovConfig = getScaledFOV("Silent", "2D", nil, TargetChar:FindFirstChild("HumanoidRootPart"))
         local inFOV = true
         
+        local fovMethod = SilentCfg["Field Of View Method"] or "2D"
         if fovMethod == "2D" then
             local screenPos, onScreen = Camera:WorldToViewportPoint(TargetPos)
             if onScreen and screenPos.Z > 0 then
@@ -3104,6 +3110,22 @@ Camera3DFOVPart.Material = Enum.Material.Neon
 Camera3DFOVPart.Parent = Workspace
 
 local NameESPDrawings = {}
+
+local PanelTitle = CreateTextLabel()
+PanelTitle.Visible = false
+PanelTitle.Size = 16
+PanelTitle.Outline = true
+PanelTitle.Center = true
+
+local PanelLabels = {}
+for i = 1, 12 do
+    local L = CreateTextLabel()
+    L.Visible = false
+    L.Size = 14
+    L.Outline = true
+    L.Center = true
+    PanelLabels[i] = L
+end
 
 local function IsInFOV(Player, mode)
     if not Player or not Player.Character then return false end
@@ -3725,7 +3747,8 @@ local function UpdateCameraFOV()
                 local fovConfig = getScaledFOV("Camera", "3D", nil, Root)
                 if fovConfig then
                     local totalSize = Root.Size + Vector3.new(fovConfig.x * 2, fovConfig.y * 2, fovConfig.z * 2)
-                    Camera3DFOVPart.Size = totalSize                    Camera3DFOVPart.CFrame = Root.CFrame
+                    Camera3DFOVPart.Size = totalSize
+                    Camera3DFOVPart.CFrame = Root.CFrame
                     local inFOV = partInFOV3D(Root, fovConfig)
                     Camera3DFOVPart.Color = inFOV and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
                     Camera3DFOVPart.Transparency = 0.92
@@ -3995,6 +4018,195 @@ local function UpdateESP()
             end
         end
         LastFrame.ESPVisible = ESPVis
+    end
+end
+
+local function UpdatePanel()
+    if not state.visualsEnabled or not state.panelVisible then
+        if LastFrame.PanelVisible then
+            PanelTitle.Visible = false
+            for _, L in next, PanelLabels do
+                if L then L.Visible = false end
+            end
+            LastFrame.PanelVisible = false
+        end
+        return
+    end
+    
+    local Config = shared.Illusion
+    local VisualsCfg = Config and Config["Visuals"] or {}
+    local PanelEnabled = VisualsCfg["Enabled"]
+    local PanelVis = false
+    
+    if PanelEnabled then
+        local ViewportX, ViewportY = Camera.ViewportSize.X, Camera.ViewportSize.Y
+        local ColorsCfg = VisualsCfg["Colors"] or {}
+        local NameColor = ColorsCfg["Names"] or Color3.new(0.7,0.7,0.7)
+        local AimedColor = ColorsCfg["Aimed"] or Color3.new(0, 0, 255)
+        local BoxColor = ColorsCfg["Box"] or Color3.new(1,1,1)
+        local FillColor = ColorsCfg["Fill"] or Color3.new(1,0,0)
+        
+        local silentTarget = State.Targets.Silent
+        local triggerTarget = State.Targets.Trigger
+        local cameraTarget = State.Targets.Camera
+        
+        local function getTargetName(target, mode)
+            if target and target.Parent then
+                if CheckChecksNoVisible(target, mode) then
+                    return target.DisplayName or target.Name or "Player"
+                end
+            end
+            return "N/A"
+        end
+        
+        local silentName = getTargetName(silentTarget, "Silent")
+        local triggerName = getTargetName(triggerTarget, "Trigger")
+        local cameraName = getTargetName(cameraTarget, "Camera")
+        
+        local primaryTarget = nil
+        local primaryMode = nil
+        if silentTarget and State.SilentTargetLocked then
+            primaryTarget = silentTarget
+            primaryMode = "Silent"
+        elseif triggerTarget and State.TriggerTargetLocked then
+            primaryTarget = triggerTarget
+            primaryMode = "Trigger"
+        elseif cameraTarget and State.CameraTargetLocked then
+            primaryTarget = cameraTarget
+            primaryMode = "Camera"
+        end
+        
+        local targetDisplayName = "N/A"
+        local healthValue = "N/A"
+        local armorValue = "N/A"
+        
+        if primaryTarget and primaryTarget.Parent then
+            if CheckChecksNoVisible(primaryTarget, primaryMode) then
+                targetDisplayName = primaryTarget.DisplayName or primaryTarget.Name or "Player"
+                
+                local char = primaryTarget.Character
+                if char then
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        local health = math.floor(humanoid.Health)
+                        healthValue = tostring(health)
+                        
+                        local armorVal = 0
+                        local armor = humanoid:FindFirstChild("Armor")
+                        if armor then
+                            armorVal = math.floor(armor.Value or 0)
+                        end
+                        if armorVal == 0 then
+                            local armorAttribute = humanoid:GetAttribute("Armor")
+                            if armorAttribute then
+                                armorVal = math.floor(armorAttribute)
+                            end
+                        end
+                        if armorVal == 0 then
+                            local bodyEffects = char:FindFirstChild("BodyEffects")
+                            if bodyEffects then
+                                local armorObj = bodyEffects:FindFirstChild("Armor")
+                                if armorObj then
+                                    armorVal = math.floor(armorObj.Value or 0)
+                                end
+                            end
+                        end
+                        armorValue = tostring(armorVal)
+                    end
+                end
+            end
+        end
+        
+        local walkSpeedStatus = state.SpeedModEnabled and "on" or "off"
+        
+        local BaseX = math.floor(ViewportX / 2 + 0.6)
+        local BaseY = math.floor(ViewportY - 190 + 0.5)
+        
+        PanelTitle.Text = string.format('illlusion')
+        PanelTitle.Size = 16
+        PanelTitle.Color = NameColor
+        PanelTitle.Position = Vector2.new(BaseX, BaseY)
+        PanelTitle.Visible = true
+
+        local OffsetY = BaseY + 20
+        local LabelIdx = 0
+
+        LabelIdx = LabelIdx + 1
+        local L = PanelLabels[LabelIdx]
+        if L then
+            local silentStatus = State.SilentTargetLocked and "on" or "off"
+            local statusColor = (silentStatus == "on") and AimedColor or NameColor
+            L.Text = string.format('silent : %s', silentStatus)
+            L.Color = statusColor
+            L.Size = 14
+            L.Position = Vector2.new(BaseX, OffsetY)
+            L.Visible = true
+            OffsetY = OffsetY + 18
+        end
+
+        LabelIdx = LabelIdx + 1
+        local L2 = PanelLabels[LabelIdx]
+        if L2 then
+            local triggerStatus = State.TriggerTargetLocked and "on" or "off"
+            local statusColor = (triggerStatus == "on") and AimedColor or NameColor
+            L2.Text = string.format('trigger : %s', triggerStatus)
+            L2.Color = statusColor
+            L2.Size = 14
+            L2.Position = Vector2.new(BaseX, OffsetY)
+            L2.Visible = true
+            OffsetY = OffsetY + 18
+        end
+
+        LabelIdx = LabelIdx + 1
+        local L3 = PanelLabels[LabelIdx]
+        if L3 then
+            local cameraStatus = State.CameraTargetLocked and "on" or "off"
+            local statusColor = (cameraStatus == "on") and AimedColor or NameColor
+            L3.Text = string.format('camera : %s', cameraStatus)
+            L3.Color = statusColor
+            L3.Size = 14
+            L3.Position = Vector2.new(BaseX, OffsetY)
+            L3.Visible = true
+            OffsetY = OffsetY + 18
+        end
+
+        LabelIdx = LabelIdx + 1
+        local L4 = PanelLabels[LabelIdx]
+        if L4 then
+            local speedColor = (walkSpeedStatus == "on") and AimedColor or NameColor
+            L4.Text = string.format('speed : %s', walkSpeedStatus)
+            L4.Color = speedColor
+            L4.Size = 14
+            L4.Position = Vector2.new(BaseX, OffsetY)
+            L4.Visible = true
+            OffsetY = OffsetY + 18
+        end
+
+        LabelIdx = LabelIdx + 1
+        local L5 = PanelLabels[LabelIdx]
+        if L5 then
+            L5.Text = string.format('target : %s [%s]', targetDisplayName, healthValue)
+            L5.Color = NameColor
+            L5.Size = 14
+            L5.Position = Vector2.new(BaseX, OffsetY)
+            L5.Visible = true
+            OffsetY = OffsetY + 18
+        end
+
+        for i = LabelIdx + 1, #PanelLabels do
+            if PanelLabels[i].Visible then PanelLabels[i].Visible = false end
+        end
+        PanelVis = true
+    end
+    
+    if PanelVis ~= LastFrame.PanelVisible then
+        if not PanelVis then
+            PanelTitle.Visible = false
+            for _, L in next, PanelLabels do
+                if L then L.Visible = false end
+            end
+        end
+        LastFrame.PanelVisible = PanelVis
     end
 end
 
@@ -4470,15 +4682,29 @@ local function FullCleanup()
         NameESPDrawings = {}
     end
 
+    pcall(function()
+        if PanelTitle then PanelTitle:Remove() end
+        if PanelLabels then
+            for _, L in next, PanelLabels do
+                if L then L:Remove() end
+            end
+            PanelLabels = {}
+        end
+    end)
+
     SilentFOVBox = nil
     TriggerFOVBox = nil
     CameraFOVBox = nil
     Silent3DFOVPart = nil
     Trigger3DFOVPart = nil
     Camera3DFOVPart = nil
+    PanelTitle = nil
+    PanelLabels = {}
+    NameESPDrawings = {}
 
     LastFrame.FOVVisible = false
     LastFrame.ESPVisible = false
+    LastFrame.PanelVisible = false
     LastFrame.TriggerFOVVisible = false
     LastFrame.CameraFOVVisible = false
 
@@ -4532,6 +4758,7 @@ local function FullCleanup()
     state.cameraOnly = false
     state.visualsEnabled = false
     state.namesVisible = false
+    state.panelVisible = false
     state.forcefieldTimers = {}
     state.heartbeatConnection = nil
     state.renderSteppedConnection = nil
@@ -4570,11 +4797,17 @@ state.safetyVisualsConnection = UserInputService.InputBegan:Connect(function(inp
             if vk and vk ~= '' and tostring(input.KeyCode) == "Enum.KeyCode." .. vk then
                 state.visualsEnabled = not state.visualsEnabled
                 state.namesVisible = state.visualsEnabled
+                state.panelVisible = state.visualsEnabled
                 if not state.visualsEnabled then
                     for _, Draw in next, NameESPDrawings do
                         if Draw then Draw.Visible = false end
                     end
+                    PanelTitle.Visible = false
+                    for _, L in next, PanelLabels do
+                        if L then L.Visible = false end
+                    end
                     LastFrame.ESPVisible = false
+                    LastFrame.PanelVisible = false
                 end
                 return
             end
@@ -4656,12 +4889,20 @@ preRenderConnection = RunService.RenderStepped:Connect(function()
     local visualsCfg = cfg["Visuals"]
     if state.visualsEnabled and visualsCfg and visualsCfg["Enabled"] then
         UpdateESP()
+        UpdatePanel()
     else
         if LastFrame.ESPVisible then
             for _, Draw in next, NameESPDrawings do
                 if Draw then Draw.Visible = false end
             end
             LastFrame.ESPVisible = false
+        end
+        if LastFrame.PanelVisible then
+            PanelTitle.Visible = false
+            for _, L in next, PanelLabels do
+                if L then L.Visible = false end
+            end
+            LastFrame.PanelVisible = false
         end
     end
 
